@@ -39,8 +39,9 @@ Rewind is built in eight phases. Each phase ends with passing tests and a workin
 
 ### Phase 2: Archive store
 - `ArchiveStore` protocol (`put`, `get_by_id`, `search`) and `JsonlArchive` implementation.
-- Content ID = first 12 hex characters of SHA-256; identical text stored once.
-- BM25 index rebuilt lazily; search filtered by session.
+- Content ID = first 12 hex characters of SHA-256 over session + text; identical text in one session is stored once, and IDs are validated before use as file names.
+- Search ranks with BM25 and gates on query coverage (share of meaningful query terms found), which does not depend on archive size.
+- BM25 index built per session and rebuilt only after that session changes.
 
 ### Phase 3: Rewind compaction
 - `RewindCompactor` archives each old user+assistant pair verbatim before summarizing and writes a pointer table (`§id → gist`) into the summary header.
@@ -71,7 +72,7 @@ Rewind is built in eight phases. Each phase ends with passing tests and a workin
 
 - [x] Phase 0: Scaffold
 - [x] Phase 1: Chat loop, token counting, plain compaction
-- [ ] Phase 2: Archive store
+- [x] Phase 2: Archive store
 - [ ] Phase 3: Rewind compaction
 - [ ] Phase 4: Recall
 - [ ] Phase 5: Metrics and benchmark
