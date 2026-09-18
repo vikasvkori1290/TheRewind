@@ -1,0 +1,35 @@
+"""Runtime settings, read from environment variables with safe defaults."""
+
+from __future__ import annotations
+
+import os
+from dataclasses import dataclass
+
+
+@dataclass(frozen=True)
+class Settings:
+    model: str = "claude-opus-5"
+    # Deliberately small so compaction happens within a short demo conversation.
+    context_limit: int = 8_000
+    # Latest messages that compaction never touches.
+    keep_recent_messages: int = 4
+    max_output_tokens: int = 16_000
+    summary_max_tokens: int = 2_000
+    # Server-side refusal fallback (Claude API only; disable on Bedrock/Vertex/Foundry).
+    refusal_fallbacks: bool = True
+    data_dir: str = "data"
+
+    @classmethod
+    def from_env(cls) -> Settings:
+        d = cls()
+        return cls(
+            model=os.getenv("REWIND_MODEL", d.model),
+            context_limit=int(os.getenv("REWIND_CONTEXT_LIMIT", d.context_limit)),
+            keep_recent_messages=int(
+                os.getenv("REWIND_KEEP_RECENT_MESSAGES", d.keep_recent_messages)
+            ),
+            max_output_tokens=int(os.getenv("REWIND_MAX_OUTPUT_TOKENS", d.max_output_tokens)),
+            summary_max_tokens=int(os.getenv("REWIND_SUMMARY_MAX_TOKENS", d.summary_max_tokens)),
+            refusal_fallbacks=os.getenv("REWIND_REFUSAL_FALLBACKS", "1") not in ("0", "false"),
+            data_dir=os.getenv("REWIND_DATA_DIR", d.data_dir),
+        )
