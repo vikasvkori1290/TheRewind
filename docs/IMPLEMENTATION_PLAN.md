@@ -44,8 +44,9 @@ Rewind is built in eight phases. Each phase ends with passing tests and a workin
 - BM25 index built per session and rebuilt only after that session changes.
 
 ### Phase 3: Rewind compaction
-- `RewindCompactor` archives each old user+assistant pair verbatim before summarizing and writes a pointer table (`§id → gist`) into the summary header.
-- Gist: first meaningful line in v1; a model-written gist as an option.
+- `RewindCompactor` archives each old turn (a user message plus everything up to the next user message) verbatim, then summarizes and writes a pointer table (`§id → gist`) into the summary header.
+- Pointers from earlier compactions are carried forward; the table shows the latest 40 and says how many older turns are reachable by search. Old headers are stripped before archiving.
+- Gist: the user's first line plus any function or class names defined in the turn.
 
 ### Phase 4: Recall
 - `recall` tool definition, handler with ID lookup, BM25 fallback, score threshold, gist/full levels.
@@ -73,7 +74,7 @@ Rewind is built in eight phases. Each phase ends with passing tests and a workin
 - [x] Phase 0: Scaffold
 - [x] Phase 1: Chat loop, token counting, plain compaction
 - [x] Phase 2: Archive store
-- [ ] Phase 3: Rewind compaction
+- [x] Phase 3: Rewind compaction
 - [ ] Phase 4: Recall
 - [ ] Phase 5: Metrics and benchmark
 - [ ] Phase 6: Server and UI
