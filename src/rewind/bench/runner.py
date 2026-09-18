@@ -64,7 +64,8 @@ class Variant:
 
 
 def run_scenario(scenario: Scenario, variant: Variant | str, settings: Settings, llm: LLM,
-                 archive: ArchiveStore, run: int = 1, progress: Progress | None = None) -> RunResult:
+                 archive: ArchiveStore, run: int = 1, progress: Progress | None = None,
+                 prices: dict | None = None) -> RunResult:
     variant = Variant.of(variant) if isinstance(variant, str) else variant
     sid = f"{scenario.name}-{variant.strategy}-{run}-{uuid.uuid4().hex[:6]}"
     session = build_session(variant.strategy, settings, llm, archive=archive, session_id=sid,
@@ -85,7 +86,7 @@ def run_scenario(scenario: Scenario, variant: Variant | str, settings: Settings,
         scenario=scenario.name, strategy=variant.label, run=run,
         seconds=round(time.monotonic() - started, 1),
         usage={**asdict(usage), "total_tokens": usage.total_tokens},
-        cost_usd=estimate_cost(usage, settings.model),
+        cost_usd=estimate_cost(usage, settings.model, prices),
         compactions=len(session.compactions),
         recall=session.tools.stats.to_dict() if session.tools else None,
         questions=results,
@@ -94,9 +95,10 @@ def run_scenario(scenario: Scenario, variant: Variant | str, settings: Settings,
 
 def run_benchmark(scenarios: list[Scenario], variants: list[Variant | str], settings: Settings,
                   llm: LLM, archive: ArchiveStore, runs: int = 1,
-                  progress: Progress | None = None) -> list[RunResult]:
+                  progress: Progress | None = None,
+                  prices: dict | None = None) -> list[RunResult]:
     return [
-        run_scenario(sc, variant, settings, llm, archive, run, progress)
+        run_scenario(sc, variant, settings, llm, archive, run, progress, prices)
         for run in range(1, runs + 1)
         for sc in scenarios
         for variant in variants

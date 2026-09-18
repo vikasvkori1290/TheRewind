@@ -1,0 +1,323 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Rewind Settings</title>
+<style>
+  :root {
+    --bg: #f6f5f1; --panel: #ffffff; --ink: #1d1d1b; --muted: #6b6a64; --line: #e4e2da;
+    --accent: #2f6f5e; --ok-bg: #e3f1ec; --ok-ink: #1f5a4a; --warn-bg: #fbf1dc; --warn-ink: #7a5412;
+    --err: #b3261e; --soft: #efeee8;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #151514; --panel: #1f1f1d; --ink: #ecebe6; --muted: #9c9a92; --line: #33322e;
+      --accent: #6cc0a7; --ok-bg: #1d3530; --ok-ink: #9fe0cb; --warn-bg: #3a3020; --warn-ink: #f0cf8f;
+      --err: #f2877f; --soft: #2a2a27;
+    }
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--ink);
+         font: 15px/1.5 -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; }
+  header { display: flex; flex-wrap: wrap; gap: 16px; align-items: baseline; padding: 16px 20px 4px; }
+  header h1 { font-size: 20px; margin: 0; }
+  nav a { color: var(--muted); text-decoration: none; margin-right: 12px; }
+  nav a.here { color: var(--ink); font-weight: 600; }
+  main { max-width: 1100px; margin: 0 auto; padding: 8px 20px 40px; }
+  @media (max-width: 700px) { main, header { padding-left: 16px; padding-right: 16px; } }
+  section { background: var(--panel); border: 1px solid var(--line); border-radius: 12px;
+            padding: 16px; margin-top: 16px; }
+  h2 { font-size: 16px; margin: 0 0 4px; }
+  .lead { color: var(--muted); font-size: 13px; margin: 0 0 12px; }
+  label { font-size: 12px; color: var(--muted); display: block; margin-bottom: 2px; }
+  input, select, button { font: inherit; color: inherit; }
+  input, select { border: 1px solid var(--line); background: var(--bg); border-radius: 8px;
+                  padding: 6px 9px; width: 100%; min-width: 0; }
+  button { border: 1px solid var(--line); background: var(--panel); border-radius: 8px;
+           padding: 6px 12px; cursor: pointer; white-space: nowrap; }
+  button.primary { background: var(--accent); border-color: var(--accent); color: #fff; }
+  button.danger { color: var(--err); }
+  button:disabled { opacity: .5; cursor: default; }
+  .row { display: flex; gap: 8px; align-items: flex-end; flex-wrap: wrap; }
+  .row > .grow { flex: 1 1 200px; min-width: 0; }
+  .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 12px; }
+  .card { border: 1px solid var(--line); border-radius: 10px; padding: 12px; display: flex;
+          flex-direction: column; gap: 8px; min-width: 0; }
+  .card h3 { font-size: 14px; margin: 0; display: flex; justify-content: space-between; gap: 8px; }
+  .badge { font-size: 11px; font-weight: 600; border-radius: 999px; padding: 1px 8px; white-space: nowrap; }
+  .badge.ok { background: var(--ok-bg); color: var(--ok-ink); }
+  .badge.env { background: var(--warn-bg); color: var(--warn-ink); }
+  .badge.none { background: var(--soft); color: var(--muted); }
+  .small { font-size: 12px; color: var(--muted); overflow-wrap: anywhere; }
+  .msg { font-size: 12px; min-height: 1em; overflow-wrap: anywhere; }
+  .msg.err { color: var(--err); } .msg.ok { color: var(--ok-ink); }
+  .tiles { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 10px;
+           margin-bottom: 12px; }
+  .tile { background: var(--soft); border-radius: 10px; padding: 10px 12px; }
+  .tile b { display: block; font-size: 20px; font-variant-numeric: tabular-nums; }
+  .tile span { font-size: 12px; color: var(--muted); }
+  .table-wrap { overflow-x: auto; }
+  table { border-collapse: collapse; width: 100%; font-size: 13px; }
+  th, td { text-align: left; padding: 6px 8px; border-bottom: 1px solid var(--line); white-space: nowrap; }
+  th { color: var(--muted); font-weight: 600; }
+  td.num, th.num { text-align: right; font-variant-numeric: tabular-nums; }
+  .muted { color: var(--muted); }
+  a { color: var(--accent); }
+</style>
+</head>
+<body>
+<header>
+  <h1>Rewind</h1>
+  <nav><a href="/">Demo</a><a href="/settings" class="here">Settings</a></nav>
+</header>
+<main>
+  <section>
+    <h2>Active model</h2>
+    <p class="lead">The demo uses this provider and model for new conversations.</p>
+    <div class="row">
+      <div class="grow"><label for="activeProvider">Provider</label><select id="activeProvider"></select></div>
+      <div class="grow"><label for="activeModel">Model</label>
+        <input id="activeModel" list="modelOptions" autocomplete="off" spellcheck="false">
+        <datalist id="modelOptions"></datalist></div>
+      <button class="primary" id="saveActive">Use this model</button>
+    </div>
+    <p class="msg" id="activeMsg"></p>
+  </section>
+
+  <section>
+    <h2>Usage and cost</h2>
+    <p class="lead">Every model call from the demo is recorded. Models with a price are tracked in
+      dollars; models without one are tracked in tokens only.</p>
+    <div class="tiles" id="usageTiles"></div>
+    <div class="table-wrap"><table id="usageTable"></table></div>
+    <div class="row" style="margin-top:10px"><button class="danger" id="resetUsage">Reset usage</button>
+      <span class="msg" id="usageMsg"></span></div>
+  </section>
+
+  <section>
+    <h2>Provider keys</h2>
+    <p class="lead">Keys are saved on this computer only, in a file readable only by your user,
+      and are never shown again after saving. A key already set in your shell environment is used
+      when none is saved.</p>
+    <div class="grid" id="providers"></div>
+  </section>
+
+  <section>
+    <h2>Model prices</h2>
+    <p class="lead">USD per million tokens. Claude prices are built in; add a price for any other
+      model to track its cost in dollars.</p>
+    <div class="row">
+      <div class="grow"><label for="priceModel">Model ID</label>
+        <input id="priceModel" placeholder="e.g. gpt-4.1-mini" list="modelOptions" autocomplete="off"></div>
+      <div><label for="priceIn">Input $/MTok</label><input id="priceIn" type="number" min="0" step="0.01" style="width:120px"></div>
+      <div><label for="priceOut">Output $/MTok</label><input id="priceOut" type="number" min="0" step="0.01" style="width:120px"></div>
+      <button class="primary" id="savePrice">Save price</button>
+    </div>
+    <p class="msg" id="priceMsg"></p>
+    <div class="table-wrap"><table id="priceTable"></table></div>
+  </section>
+</main>
+<script>
+const $ = (s, el = document) => el.querySelector(s);
+let state = { providers: [], active: null, prices: null, models: {} };
+
+async function api(path, options = {}) {
+  const res = await fetch(path, { headers: { "Content-Type": "application/json" }, ...options });
+  const body = await res.json().catch(() => ({}));
+  if (!res.ok) throw new Error(typeof body.detail === "string" ? body.detail : res.statusText);
+  return body;
+}
+
+function el(tag, props = {}, ...children) {
+  const node = document.createElement(tag);
+  for (const [k, v] of Object.entries(props)) {
+    if (k === "class") node.className = v;
+    else if (k.startsWith("on")) node.addEventListener(k.slice(2), v);
+    else if (v !== undefined && v !== null) node.setAttribute(k, v);
+  }
+  for (const c of children) if (c !== null && c !== undefined)
+    node.append(c instanceof Node ? c : document.createTextNode(String(c)));
+  return node;
+}
+
+function setMsg(node, text, kind = "") { node.textContent = text; node.className = "msg " + kind; }
+const fmt = n => n.toLocaleString();
+const money = n => n == null ? null : "$" + (n < 0.01 && n > 0 ? n.toFixed(5) : n.toFixed(4));
+
+// --- providers ---------------------------------------------------------------
+
+function badge(p) {
+  if (p.key_source === "saved") return el("span", { class: "badge ok" }, "Saved " + p.key_masked);
+  if (p.key_source === "env") return el("span", { class: "badge env" }, "From environment " + p.key_masked);
+  if (p.kind === "bedrock" && p.auth === "aws") return el("span", { class: "badge ok" }, "AWS login");
+  return el("span", { class: "badge none" }, "Not set");
+}
+
+function providerCard(p) {
+  const msg = el("p", { class: "msg" });
+  const keyInput = el("input", { type: "password", placeholder: p.key_hint, autocomplete: "off",
+                                 spellcheck: "false", "aria-label": p.name + " API key" });
+  const extras = [];
+  const body = {};
+  if (p.kind === "bedrock") {
+    const auth = el("select", { "aria-label": "Bedrock sign-in" },
+      el("option", { value: "key" }, "Bedrock API key"), el("option", { value: "aws" }, "AWS login (aws login / profile)"));
+    auth.value = p.auth || "key";
+    const region = el("input", { placeholder: "region, e.g. us-east-1", value: p.region || "",
+                                 "aria-label": "AWS region" });
+    extras.push(el("div", {}, el("label", {}, "Sign-in"), auth), el("div", {}, el("label", {}, "Region"), region));
+    body.extra = () => ({ auth: auth.value, region: region.value.trim() });
+  } else if (p.id === "custom") {
+    const url = el("input", { placeholder: "https://…/v1", value: p.base_url || "", "aria-label": "Base URL" });
+    extras.push(el("div", {}, el("label", {}, "Base URL (OpenAI-compatible)"), url));
+    body.extra = () => ({ base_url: url.value.trim() });
+  } else if (p.base_url) {
+    extras.push(el("p", { class: "small" }, "Endpoint: " + p.base_url));
+  }
+
+  async function save() {
+    const payload = body.extra ? body.extra() : {};
+    if (keyInput.value.trim()) payload.api_key = keyInput.value.trim();
+    if (!Object.keys(payload).length) return setMsg(msg, "Enter a key first.", "err");
+    try {
+      await api(`/api/providers/${p.id}`, { method: "PUT", body: JSON.stringify(payload) });
+      keyInput.value = "";
+      setMsg(msg, "Saved.", "ok");
+      await loadProviders();
+    } catch (e) { setMsg(msg, e.message, "err"); }
+  }
+  async function remove() {
+    try { await api(`/api/providers/${p.id}/key`, { method: "DELETE" }); await loadProviders(); }
+    catch (e) { setMsg(msg, e.message, "err"); }
+  }
+  async function test(ev) {
+    ev.target.disabled = true; setMsg(msg, "Checking…");
+    try {
+      const r = await api(`/api/providers/${p.id}/test`, { method: "POST", body: "{}" });
+      if (!r.ok) setMsg(msg, "Failed: " + r.error, "err");
+      else {
+        state.models[p.id] = r.models;
+        setMsg(msg, r.note || `Key works: ${r.count} models available.`, "ok");
+        if ($("#activeProvider").value === p.id) fillModelOptions(p.id);
+      }
+    } catch (e) { setMsg(msg, e.message, "err"); }
+    ev.target.disabled = false;
+  }
+
+  return el("div", { class: "card" },
+    el("h3", {}, el("span", {}, p.name), badge(p)),
+    ...extras,
+    el("div", { class: "row" }, el("div", { class: "grow" }, keyInput),
+       el("button", { class: "primary", onclick: save }, "Save")),
+    el("div", { class: "row" },
+       el("button", { onclick: test }, "Test"),
+       p.key_source === "saved" ? el("button", { class: "danger", onclick: remove }, "Remove key") : null,
+       p.keys_url ? el("a", { href: p.keys_url, target: "_blank", rel: "noopener noreferrer",
+                              class: "small" }, "Get a key ↗") : null),
+    msg);
+}
+
+async function loadProviders() {
+  const data = await api("/api/providers");
+  state.providers = data.providers; state.active = data.active;
+  const grid = $("#providers"); grid.replaceChildren(...state.providers.map(providerCard));
+  const sel = $("#activeProvider");
+  sel.replaceChildren(...state.providers.map(p =>
+    el("option", { value: p.id }, p.name + (p.ready ? "" : " (no key)"))));
+  sel.value = state.active.provider;
+  $("#activeModel").value = state.active.model;
+  fillModelOptions(sel.value);
+}
+
+function fillModelOptions(providerId) {
+  const p = state.providers.find(x => x.id === providerId);
+  const ids = state.models[providerId] || [...(p?.suggested_models || []), p?.default_model].filter(Boolean);
+  $("#modelOptions").replaceChildren(...[...new Set(ids)].map(id => el("option", { value: id })));
+}
+
+$("#activeProvider").addEventListener("change", e => {
+  const p = state.providers.find(x => x.id === e.target.value);
+  fillModelOptions(p.id);
+  if (p.id !== state.active.provider) $("#activeModel").value = p.default_model || "";
+});
+
+$("#saveActive").addEventListener("click", async () => {
+  const provider = $("#activeProvider").value, model = $("#activeModel").value.trim();
+  const msg = $("#activeMsg");
+  if (!model) return setMsg(msg, "Choose or type a model ID. Use Test on the provider to list models.", "err");
+  try {
+    await api("/api/active", { method: "PUT", body: JSON.stringify({ provider, model }) });
+    state.active = { provider, model };
+    const p = state.providers.find(x => x.id === provider);
+    setMsg(msg, `Using ${model} on ${p.name}. ` + (p.ready ? "Start a new conversation on the demo page."
+      : "This provider has no key yet: add one below."), p.ready ? "ok" : "err");
+  } catch (e) { setMsg(msg, e.message, "err"); }
+});
+
+// --- usage -------------------------------------------------------------------
+
+async function loadUsage() {
+  const u = await api("/api/usage");
+  $("#usageTiles").replaceChildren(
+    el("div", { class: "tile" }, el("b", {}, money(u.total_cost_usd)), el("span", {}, "cost on priced models")),
+    el("div", { class: "tile" }, el("b", {}, fmt(u.total_tokens)), el("span", {}, "total tokens")),
+    el("div", { class: "tile" }, el("b", {}, fmt(u.unpriced_tokens)), el("span", {}, "tokens on unpriced models")),
+    el("div", { class: "tile" }, el("b", {}, fmt(u.calls)), el("span", {}, "model calls")));
+  const head = el("tr", {}, ...["Provider", "Model", "Calls", "Input", "Output", "Cache read", "Total tokens", "Cost"]
+    .map((h, i) => el("th", { class: i >= 2 ? "num" : "" }, h)));
+  const rows = u.rows.length ? u.rows.map(r => el("tr", {},
+      el("td", {}, r.provider), el("td", {}, r.model),
+      el("td", { class: "num" }, fmt(r.calls)), el("td", { class: "num" }, fmt(r.input_tokens)),
+      el("td", { class: "num" }, fmt(r.output_tokens)), el("td", { class: "num" }, fmt(r.cache_read_tokens)),
+      el("td", { class: "num" }, fmt(r.total_tokens)),
+      el("td", { class: "num" }, r.cost_usd == null ? el("span", { class: "muted" }, "not tracked (no price)")
+                                                    : money(r.cost_usd))))
+    : [el("tr", {}, el("td", { colspan: 8, class: "muted" }, "No usage yet."))];
+  $("#usageTable").replaceChildren(el("thead", {}, head), el("tbody", {}, ...rows));
+}
+
+let resetArmed = false;
+$("#resetUsage").addEventListener("click", async e => {
+  if (!resetArmed) { resetArmed = true; e.target.textContent = "Click again to reset";
+                     setTimeout(() => { resetArmed = false; e.target.textContent = "Reset usage"; }, 4000); return; }
+  resetArmed = false; e.target.textContent = "Reset usage";
+  try { await api("/api/usage", { method: "DELETE" }); setMsg($("#usageMsg"), "Usage reset.", "ok"); loadUsage(); }
+  catch (err) { setMsg($("#usageMsg"), err.message, "err"); }
+});
+
+// --- prices ------------------------------------------------------------------
+
+async function loadPrices() {
+  const p = await api("/api/prices");
+  const row = (model, [i, o], custom) => el("tr", {},
+    el("td", {}, model), el("td", { class: "num" }, "$" + i), el("td", { class: "num" }, "$" + o),
+    el("td", {}, custom ? el("button", { class: "danger", onclick: async () => {
+      await api("/api/prices/" + encodeURIComponent(model), { method: "DELETE" }); loadPrices(); loadUsage();
+    } }, "Remove") : el("span", { class: "muted" }, "built in")));
+  $("#priceTable").replaceChildren(
+    el("thead", {}, el("tr", {}, el("th", {}, "Model"), el("th", { class: "num" }, "Input $/MTok"),
+                     el("th", { class: "num" }, "Output $/MTok"), el("th", {}, ""))),
+    el("tbody", {}, ...Object.entries(p.custom).map(([m, v]) => row(m, v, true)),
+                    ...Object.entries(p.builtin).map(([m, v]) => row(m, v, false))));
+}
+
+$("#savePrice").addEventListener("click", async () => {
+  const model = $("#priceModel").value.trim(), i = parseFloat($("#priceIn").value), o = parseFloat($("#priceOut").value);
+  if (!model || isNaN(i) || isNaN(o)) return setMsg($("#priceMsg"), "Enter a model ID and both prices.", "err");
+  try {
+    await api("/api/prices", { method: "PUT",
+      body: JSON.stringify({ model, input_per_mtok: i, output_per_mtok: o }) });
+    setMsg($("#priceMsg"), `Saved. New calls to ${model} are tracked in dollars.`, "ok");
+    $("#priceModel").value = $("#priceIn").value = $("#priceOut").value = "";
+    loadPrices();
+  } catch (e) { setMsg($("#priceMsg"), e.message, "err"); }
+});
+
+(async () => {
+  await Promise.all([loadProviders(), loadUsage(), loadPrices()]);
+  setInterval(loadUsage, 10000);
+})();
+</script>
+</body>
+</html>

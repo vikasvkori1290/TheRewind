@@ -20,7 +20,17 @@ cp .env.example .env          # then fill in the provider and key
 
 Settings are environment variables or lines in `.env`; see `.env.example`.
 
-### Providers
+### Providers and keys
+
+The easiest way: run `uv run rewind-serve`, open **http://127.0.0.1:8000/settings**, and for each provider paste a key, click **Save**, then **Test** (which lists the models the key can use). Pick the active provider and model at the top of the page. Keys are saved in `data/rewind_config.json` (readable only by your user, git-ignored) and are only ever shown masked. A key already in your shell environment (e.g. `OPENAI_API_KEY`, `NVIDIA_API_KEY`) is used when none is saved.
+
+Supported: Claude (Anthropic API), Amazon Bedrock (API key or AWS login), OpenAI, Google Gemini, NVIDIA NIM, OpenRouter, Groq, Mistral, DeepSeek, Together AI, and any custom OpenAI-compatible endpoint.
+
+**Cost tracking.** Every model call (chat, compaction summaries, recalls) is recorded in `data/usage.jsonl`, and the settings page shows calls, tokens and cost per provider and model. Claude models have built-in prices and are tracked in dollars. Any other model is tracked in tokens only, unless you add its price under **Model prices**; from then on its calls are tracked in dollars too. Prices are estimates; your provider's bill is authoritative.
+
+**Security.** The server listens on 127.0.0.1 only, answers only requests addressed to localhost, and refuses cross-site requests, so other websites can't read or change your keys or spend your credits.
+
+The same saved keys, active model and ledger are used by `rewind-chat` and `rewind-bench`. Environment variables still work without the settings page:
 
 | Provider | Settings | Credentials |
 | --- | --- | --- |

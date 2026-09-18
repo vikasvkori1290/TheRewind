@@ -12,9 +12,8 @@ from pathlib import Path
 
 from rewind.bench.runner import Variant, run_benchmark, summarize, write_report
 from rewind.bench.scenarios import SCENARIOS
-from rewind.config import Settings
+from rewind.appconfig import runtime
 from rewind.factory import STRATEGIES
-from rewind.llm import make_llm
 from rewind.store_factory import open_archive
 
 
@@ -39,7 +38,7 @@ def main() -> None:
     if bad := [n for n in names if n not in SCENARIOS]:
         parser.error(f"unknown scenarios: {bad}")
 
-    settings = Settings.from_env()
+    settings, llm, config = runtime()
     if args.context_limit:
         settings = dataclasses.replace(settings, context_limit=args.context_limit)
 
@@ -48,7 +47,7 @@ def main() -> None:
     if args.rewind_limit:
         variants.append(Variant(f"rewind@{args.rewind_limit}", "rewind", args.rewind_limit))
     turns = sum(len(s.turns) for s in scenarios) * len(variants) * args.runs
-    print(f"Model {settings.model} · limit {settings.context_limit} tokens · "
+    print(f"{settings.provider} · {settings.model} · limit {settings.context_limit} tokens · "
           f"{len(scenarios)} scenarios × {len(variants)} setups × {args.runs} runs "
           f"= {turns} chat turns (plus token counts, summaries and recalls).")
     if not args.yes and input("This uses the live API (and may cost money). Continue? [y/N] ") \
@@ -58,8 +57,9 @@ def main() -> None:
 
     out_dir = Path(args.out) / datetime.now().strftime("%Y%m%d-%H%M%S")
     archive = open_archive(settings, out_dir / "archive")
-    results = run_benchmark(scenarios, variants, settings, make_llm(settings), archive,
-                            runs=args.runs, progress=lambda msg: print(f"  {msg}", end="\r"))
+    results = run_benchmark(scenarios, variants, settings, llm, archive, runs=args.runs,
+                            progress=lambda msg: print(f"  {msg}", end="\r"),
+                            prices=config.custom_prices())
     print()
     json_path, md_path = write_report(results, out_dir, settings.model)
     for row in summarize(results):

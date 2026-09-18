@@ -7,7 +7,8 @@ Providers:
 - anthropic: the Claude API (key in REWIND_API_KEY or ANTHROPIC_API_KEY).
 - bedrock: Claude in Amazon Bedrock (Messages API endpoint). Authenticates with a
   Bedrock API key in AWS_BEARER_TOKEN_BEDROCK, or the usual AWS credential chain.
-- nim: NVIDIA NIM or any OpenAI-compatible API, via `openai_compat.py`.
+- OpenAI, Gemini, NVIDIA NIM, OpenRouter, Groq, Mistral, DeepSeek, Together or any
+  OpenAI-compatible API, via `openai_compat.py` (see `providers.py`).
 """
 
 from __future__ import annotations
@@ -22,6 +23,7 @@ import anthropic
 
 from rewind.config import Settings
 from rewind.messages import to_text
+from rewind.providers import BEDROCK, OPENAI_COMPAT, get_provider
 
 log = logging.getLogger(__name__)
 
@@ -79,16 +81,30 @@ def make_client(settings: Settings):
         elif settings.api_key:
             kwargs["api_key"] = settings.api_key
         return anthropic.AnthropicBedrockMantle(**kwargs)
-    raise ValueError(f"unknown provider {settings.provider!r}; use 'anthropic' or 'bedrock'")
+    raise ValueError(f"provider {settings.provider!r} does not use Anthropic's SDK")
 
 
 def make_llm(settings: Settings) -> LLM:
     """The model gateway for the configured provider."""
-    if settings.provider == "nim":
+    if get_provider(settings.provider).kind == OPENAI_COMPAT:
         from rewind.openai_compat import OpenAICompatLLM
 
         return OpenAICompatLLM(settings)
     return AnthropicLLM(settings)
+
+
+def list_models(settings: Settings) -> list[str]:
+    """Model IDs the provider offers to this key; also serves as a key check."""
+    spec = get_provider(settings.provider)
+    if spec.kind == BEDROCK:
+        return list(spec.suggested_models)  # the Bedrock Messages endpoint has no model list
+    if spec.kind == OPENAI_COMPAT:
+        from rewind.openai_compat import make_openai_client
+
+        client = make_openai_client(settings, timeout=30)
+        return sorted(m.id for m in client.models.list())
+    client = anthropic.Anthropic(api_key=settings.api_key, timeout=30)
+    return [m.id for m in client.models.list()]
 
 
 def estimate_tokens(system: str, messages: list[dict], tools: list[dict] | None) -> int:

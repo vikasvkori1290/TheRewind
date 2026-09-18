@@ -69,6 +69,7 @@
 <header>
   <h1>Rewind</h1>
   <span class="meta" id="meta">loading…</span>
+  <a class="meta" href="/settings" style="margin-left:auto">Settings · keys · cost ›</a>
 </header>
 <div class="controls">
   <button id="new">New conversation</button>
@@ -167,7 +168,7 @@ async function api(path, options = {}) {
 }
 
 async function newPair() {
-  pairId = (await api("/api/pairs", { method: "POST" })).id;
+  pairId = (await api("/api/pairs", { method: "POST", body: "{}" })).id;
   SIDES.forEach(side => { $(".log", pane(side)).innerHTML = ""; });
   for (const chart of [costChart, ctxChart]) {
     chart.data.labels = []; chart.data.datasets.forEach(d => d.data = []); chart.update();
@@ -241,7 +242,9 @@ async function sendInput() {
   costChart = makeChart($("#costChart"));
   ctxChart = makeChart($("#ctxChart"));
   config = await api("/api/config");
-  $("#meta").textContent = `model ${config.model} · compacts at ${config.context_limit.toLocaleString()} tokens`;
+  $("#meta").textContent = `${config.provider_name} · ${config.model} · compacts at ` +
+    `${config.context_limit.toLocaleString()} tokens · ${config.priced ? "cost tracked in $" : "no price: tokens only"}`;
+  if (!config.priced) $("#costTitle").textContent = "Cumulative tokens (no price for this model)";
   for (const name of Object.keys(config.scenarios)) {
     const opt = document.createElement("option"); opt.value = opt.textContent = name;
     $("#scenario").appendChild(opt);

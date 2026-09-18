@@ -28,10 +28,14 @@ def _flag(name: str, default: bool) -> bool:
 
 
 def _api_key(provider: str) -> str | None:
-    # REWIND_API_KEY wins; NIM also accepts NVIDIA's standard variable.
+    # REWIND_API_KEY wins; OpenAI-compatible providers also accept their own variables
+    # (NVIDIA_API_KEY, OPENAI_API_KEY, ...). Claude and Bedrock let the SDK find its own.
+    from rewind.providers import OPENAI_COMPAT, PROVIDERS
+
     key = os.getenv("REWIND_API_KEY")
-    if not key and provider == "nim":
-        key = os.getenv("NVIDIA_API_KEY")
+    spec = PROVIDERS.get(provider)
+    if not key and spec and spec.kind == OPENAI_COMPAT:
+        key = next((v for var in spec.key_env if (v := os.getenv(var))), None)
     return key or None
 
 

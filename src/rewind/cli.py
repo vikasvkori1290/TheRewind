@@ -8,9 +8,8 @@ from __future__ import annotations
 
 import argparse
 
-from rewind.config import Settings
+from rewind.appconfig import runtime
 from rewind.factory import build_session
-from rewind.llm import make_llm
 from rewind.pricing import estimate_cost
 from rewind.store_factory import open_archive
 
@@ -20,11 +19,10 @@ def main() -> None:
     parser.add_argument("--plain", action="store_true", help="use plain compaction instead")
     args = parser.parse_args()
 
-    settings = Settings.from_env()
+    settings, llm, config = runtime()
     strategy = "plain" if args.plain else "rewind"
-    session = build_session(strategy, settings, make_llm(settings),
-                            archive=open_archive(settings))
-    print(f"Rewind chat · {strategy} · model {settings.model} · "
+    session = build_session(strategy, settings, llm, archive=open_archive(settings))
+    print(f"Rewind chat · {strategy} · {settings.provider} · {settings.model} · "
           f"limit {settings.context_limit} tokens · session {session.id}")
     print("Commands: /stats, /archive, /quit\n")
 
@@ -40,7 +38,7 @@ def main() -> None:
             break
         if text == "/stats":
             u = session.total_usage
-            cost = estimate_cost(u, settings.model)
+            cost = estimate_cost(u, settings.model, config.custom_prices())
             cost_text = f"${cost:.4f}" if cost is not None else "unknown model price"
             print(f"  context {session.context_tokens} tokens · calls {u.calls} · "
                   f"input {u.input_tokens} · output {u.output_tokens} · "

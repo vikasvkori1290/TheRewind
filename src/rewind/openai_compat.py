@@ -16,8 +16,6 @@ from typing import Any
 from rewind.config import Settings
 from rewind.messages import _as_dict
 
-NIM_BASE_URL = "https://integrate.api.nvidia.com/v1"
-
 
 @dataclass
 class TextBlock:
@@ -125,19 +123,29 @@ def from_openai_response(response: Any) -> SimpleNamespace:
     )
 
 
+def make_openai_client(settings: Settings, timeout: float | None = None):
+    from openai import OpenAI  # optional dependency: uv sync --extra nim
+
+    from rewind.providers import get_provider
+
+    base_url = settings.base_url or get_provider(settings.provider).base_url
+    if not base_url:
+        raise ValueError(f"provider {settings.provider!r} needs a base URL")
+    return OpenAI(base_url=base_url, api_key=settings.api_key or "missing",
+                  timeout=timeout or settings.request_timeout)
+
+
 class OpenAICompatLLM:
     def __init__(self, settings: Settings, client: Any | None = None):
         self.model = settings.model
-        if client is None:
-            from openai import OpenAI  # optional dependency: uv sync --extra nim
-
-            client = OpenAI(base_url=settings.base_url or NIM_BASE_URL, api_key=settings.api_key,
-                            timeout=settings.request_timeout)
-        self._client = client
+        # OpenAI's current models take max_completion_tokens; most other
+        # compatible APIs only understand max_tokens.
+        self._limit_param = "max_completion_tokens" if settings.provider == "openai" else "max_tokens"
+        self._client = client or make_openai_client(settings)
 
     def create(self, *, system, messages, max_tokens, tools=None):
-        kwargs: dict[str, Any] = dict(model=self.model, max_tokens=max_tokens,
-                                      messages=to_openai_messages(system, messages))
+        kwargs: dict[str, Any] = dict(model=self.model, messages=to_openai_messages(system, messages))
+        kwargs[self._limit_param] = max_tokens
         if oa_tools := to_openai_tools(tools):
             kwargs["tools"] = oa_tools
         return from_openai_response(self._client.chat.completions.create(**kwargs))
