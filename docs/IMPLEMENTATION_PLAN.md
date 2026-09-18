@@ -21,7 +21,7 @@ Rewind is built in eight phases. Each phase ends with passing tests and a workin
 | 3 | Rewind compaction with pointers | `compaction.py` (`RewindCompactor`) | Every pointer in a summary resolves to an archived record |
 | 4 | Recall tool, threshold, failed-search memory | `recall.py`, `session.py` tool loop | Model recalls a planted fact by ID and by search; unknown facts return NOT_FOUND |
 | 5 | Metrics and benchmark | `pricing.py`, `bench/` | Benchmark runs all three setups and writes a results file |
-| 6 | API server and split-screen demo UI | `server.py`, `web/` | Two panes and a live token/cost chart update each turn |
+| 6 | API server and split-screen demo UI | `server.py`, `web/index.html` | Two panes and a live token/cost chart update each turn |
 | 7 | Stretch: MCP server, cache-aware compaction, SQLite | `mcp_server.py`, `store_sqlite.py` | Chosen stretch goal works end to end |
 
 ## Phase details
@@ -62,8 +62,8 @@ Rewind is built in eight phases. Each phase ends with passing tests and a workin
 - `uv run rewind-bench` asks for confirmation (live API), then writes `results/<timestamp>/results.json` and `report.md` with accuracy, tokens, cost and tokens per correct answer.
 
 ### Phase 6: Server and UI
-- FastAPI: create session (plain or Rewind), send message, get metrics, list archive.
-- Single-page UI: two chat panes on the same script, live chart of tokens and cost.
+- FastAPI (`uv run rewind-serve`, localhost only): create a plain + Rewind pair, send one message to both in parallel, get state, list the archive. Messages are length-checked, a pair accepts one message at a time, and at most 20 pairs are kept in memory.
+- Single page (`src/rewind/web/index.html`): two chat panes, per-pane stats and context meter, compaction and recall markers, a "Play demo script" button for the scenarios, and live charts of cumulative cost and context size. Model output is rendered as text, never HTML.
 
 ### Phase 7: Stretch
 - Pick one: MCP server exposing `recall`; cache-aware compaction with `cache_read_input_tokens` on the dashboard; SQLite storage.
@@ -81,5 +81,5 @@ Rewind is built in eight phases. Each phase ends with passing tests and a workin
 - [x] Phase 3: Rewind compaction
 - [x] Phase 4: Recall
 - [x] Phase 5: Metrics and benchmark
-- [ ] Phase 6: Server and UI
+- [x] Phase 6: Server and UI
 - [ ] Phase 7: Stretch

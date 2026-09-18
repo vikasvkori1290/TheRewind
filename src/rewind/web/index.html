@@ -1,0 +1,257 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Rewind Demo</title>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
+<style>
+  :root {
+    --bg: #f6f5f1; --panel: #ffffff; --ink: #1d1d1b; --muted: #6b6a64; --line: #e4e2da;
+    --plain: #b4553a; --rewind: #2f6f5e; --user: #efeee8; --accent: #2f6f5e;
+    --warn-bg: #fbf1dc; --warn-ink: #7a5412;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #151514; --panel: #1f1f1d; --ink: #ecebe6; --muted: #9c9a92; --line: #33322e;
+      --plain: #e0876b; --rewind: #6cc0a7; --user: #2a2a27; --accent: #6cc0a7;
+      --warn-bg: #3a3020; --warn-ink: #f0cf8f;
+    }
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--ink);
+         font: 15px/1.5 -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; }
+  header { display: flex; flex-wrap: wrap; gap: 12px; align-items: baseline;
+           padding: 16px 20px 8px; }
+  header h1 { font-size: 20px; margin: 0; letter-spacing: -0.01em; }
+  header .meta { color: var(--muted); font-size: 13px; }
+  .controls { display: flex; flex-wrap: wrap; gap: 8px; padding: 0 20px 12px; align-items: center; }
+  select, button, textarea { font: inherit; color: inherit; }
+  select, button { border: 1px solid var(--line); background: var(--panel); border-radius: 8px;
+                   padding: 6px 12px; cursor: pointer; }
+  button.primary { background: var(--accent); border-color: var(--accent); color: #fff; }
+  button:disabled { opacity: .5; cursor: default; }
+  .status { color: var(--muted); font-size: 13px; }
+  main { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; padding: 0 20px; }
+  @media (max-width: 800px) { main { grid-template-columns: 1fr; padding: 0 16px; }
+                              .controls, header { padding-left: 16px; padding-right: 16px; } }
+  .pane { background: var(--panel); border: 1px solid var(--line); border-radius: 12px;
+          display: flex; flex-direction: column; min-height: 0; }
+  .pane h2 { margin: 0; font-size: 15px; padding: 12px 14px 4px; display: flex; gap: 8px;
+             align-items: center; }
+  .dot { width: 10px; height: 10px; border-radius: 50%; display: inline-block; }
+  .stats { display: grid; grid-template-columns: repeat(4, 1fr); gap: 4px; padding: 4px 14px 10px;
+           font-size: 12px; color: var(--muted); border-bottom: 1px solid var(--line); }
+  .stats b { display: block; color: var(--ink); font-size: 15px; font-variant-numeric: tabular-nums; }
+  .meter { height: 4px; background: var(--line); border-radius: 2px; margin: 0 14px 10px; }
+  .meter > div { height: 100%; border-radius: 2px; width: 0; transition: width .3s; }
+  .log { overflow-y: auto; height: 46vh; padding: 12px 14px; display: flex; flex-direction: column;
+         gap: 8px; }
+  .msg { white-space: pre-wrap; word-wrap: break-word; padding: 8px 11px; border-radius: 10px;
+         max-width: 92%; font-size: 14px; }
+  .msg.user { background: var(--user); align-self: flex-end; }
+  .msg.assistant { border: 1px solid var(--line); align-self: flex-start; }
+  .msg.filler { color: var(--muted); font-style: italic; }
+  .event { font-size: 12px; color: var(--muted); text-align: center; }
+  .recall { font-size: 12px; background: var(--warn-bg); color: var(--warn-ink);
+            border-radius: 6px; padding: 3px 8px; align-self: flex-start; }
+  .composer { display: flex; gap: 8px; padding: 12px 20px; }
+  .composer textarea { flex: 1; min-height: 44px; max-height: 160px; resize: vertical; border-radius: 10px;
+                       border: 1px solid var(--line); background: var(--panel); padding: 10px; }
+  .charts { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; padding: 0 20px 24px; }
+  @media (max-width: 800px) { .charts { grid-template-columns: 1fr; padding: 0 16px 24px; } }
+  .chart { background: var(--panel); border: 1px solid var(--line); border-radius: 12px; padding: 12px; }
+  .chart h3 { margin: 0 0 6px; font-size: 13px; color: var(--muted); font-weight: 600; }
+  .error { color: #c0392b; }
+</style>
+</head>
+<body>
+<header>
+  <h1>Rewind</h1>
+  <span class="meta" id="meta">loading…</span>
+</header>
+<div class="controls">
+  <button id="new">New conversation</button>
+  <select id="scenario"></select>
+  <button id="play">Play demo script</button>
+  <button id="stop" disabled>Stop</button>
+  <span class="status" id="status"></span>
+</div>
+<main>
+  <section class="pane" data-side="plain">
+    <h2><span class="dot" style="background:var(--plain)"></span>Plain compaction</h2>
+    <div class="stats"></div><div class="meter"><div style="background:var(--plain)"></div></div>
+    <div class="log"></div>
+  </section>
+  <section class="pane" data-side="rewind">
+    <h2><span class="dot" style="background:var(--rewind)"></span>Rewind (archive + recall)</h2>
+    <div class="stats"></div><div class="meter"><div style="background:var(--rewind)"></div></div>
+    <div class="log"></div>
+  </section>
+</main>
+<div class="composer">
+  <textarea id="input" placeholder="Message both chats… (Enter to send, Shift+Enter for a new line)"></textarea>
+  <button class="primary" id="send">Send</button>
+</div>
+<div class="charts">
+  <div class="chart"><h3>Cumulative cost (USD, estimated)</h3><canvas id="costChart" height="160"></canvas></div>
+  <div class="chart"><h3>Context size before each call (tokens)</h3><canvas id="ctxChart" height="160"></canvas></div>
+</div>
+<script>
+const $ = (s, el = document) => el.querySelector(s);
+const SIDES = ["plain", "rewind"];
+let config, pairId, busy = false, stopRequested = false;
+let costChart, ctxChart;
+
+function css(name) { return getComputedStyle(document.documentElement).getPropertyValue(name).trim(); }
+
+function makeChart(canvas) {
+  return new Chart(canvas, {
+    type: "line",
+    data: { labels: [], datasets: SIDES.map(side => ({
+      label: side === "plain" ? "Plain" : "Rewind", data: [], borderColor: css("--" + side),
+      backgroundColor: css("--" + side), tension: .2, pointRadius: 2 })) },
+    options: { animation: false, plugins: { legend: { labels: { color: css("--muted") } } },
+      scales: { x: { title: { display: true, text: "turn", color: css("--muted") },
+                     ticks: { color: css("--muted") }, grid: { color: css("--line") } },
+                y: { beginAtZero: true, ticks: { color: css("--muted") }, grid: { color: css("--line") } } } }
+  });
+}
+
+function pane(side) { return $(`.pane[data-side="${side}"]`); }
+
+function add(side, cls, text) {
+  const div = document.createElement("div");
+  div.className = cls;
+  div.textContent = text;          // never innerHTML: model output is untrusted
+  const log = $(".log", pane(side));
+  log.appendChild(div);
+  log.scrollTop = log.scrollHeight;
+}
+
+function fmt(n) { return n == null ? "–" : n.toLocaleString(); }
+
+function renderStats(side, s) {
+  const recalls = s.recall ? s.recall.hits_by_id + s.recall.hits_by_search : "–";
+  $(".stats", pane(side)).innerHTML = "";
+  [["context", fmt(s.context_tokens)], ["total tokens", fmt(s.usage.total_tokens)],
+   ["cost", s.cost_usd == null ? "–" : "$" + s.cost_usd.toFixed(4)],
+   [side === "rewind" ? "recalls" : "compactions", side === "rewind" ? recalls : s.compactions.length]]
+    .forEach(([label, value]) => {
+      const d = document.createElement("div");
+      const b = document.createElement("b"); b.textContent = value;
+      d.append(b, label);
+      $(".stats", pane(side)).appendChild(d);
+    });
+  const pct = Math.min(100, 100 * s.context_tokens / config.context_limit);
+  $(".meter > div", pane(side)).style.width = pct + "%";
+}
+
+function pushCharts(turn, data) {
+  for (const chart of [costChart, ctxChart]) chart.data.labels.push(turn);
+  SIDES.forEach((side, i) => {
+    costChart.data.datasets[i].data.push(data[side].state.cost_usd);
+    ctxChart.data.datasets[i].data.push(data[side].state.context_tokens);
+  });
+  costChart.update(); ctxChart.update();
+}
+
+async function api(path, options = {}) {
+  const res = await fetch(path, { headers: { "Content-Type": "application/json" }, ...options });
+  const body = await res.json().catch(() => ({}));
+  if (!res.ok) throw new Error(body.detail || res.statusText);
+  return body;
+}
+
+async function newPair() {
+  pairId = (await api("/api/pairs", { method: "POST" })).id;
+  SIDES.forEach(side => { $(".log", pane(side)).innerHTML = ""; });
+  for (const chart of [costChart, ctxChart]) {
+    chart.data.labels = []; chart.data.datasets.forEach(d => d.data = []); chart.update();
+  }
+  const empty = { context_tokens: 0, usage: { total_tokens: 0 }, cost_usd: 0, compactions: [],
+                  recall: { hits_by_id: 0, hits_by_search: 0 } };
+  SIDES.forEach(side => renderStats(side, empty));
+  $("#status").textContent = "New conversation ready.";
+}
+
+async function send(text, kind = "message") {
+  const shown = kind === "filler"
+    ? `[pasted notes · ${text.length.toLocaleString()} chars]\n${text.split("\n")[0]}`
+    : text;
+  SIDES.forEach(side => add(side, "msg user" + (kind === "filler" ? " filler" : ""), shown));
+  setBusy(true, "Waiting for both models…");
+  try {
+    const data = await api(`/api/pairs/${pairId}/messages`,
+                           { method: "POST", body: JSON.stringify({ text }) });
+    for (const side of SIDES) {
+      const r = data[side];
+      for (const c of r.new_compactions)
+        add(side, "event", `— compacted: ${c.removed_messages} messages, ` +
+                           `${fmt(c.tokens_before)} → ${fmt(c.tokens_after)} tokens —`);
+      for (const e of r.new_recalls)
+        add(side, "recall", `↺ recall ${e.outcome.replace("_", " ")}: ` +
+                            `${e.id ? "§" + e.id : JSON.stringify(e.query)} (${e.level})`);
+      add(side, "msg assistant", r.reply);
+      renderStats(side, r.state);
+    }
+    pushCharts(data.plain.state.turn, data);
+    setBusy(false, "");
+  } catch (err) {
+    setBusy(false, "");
+    $("#status").innerHTML = "";
+    const span = document.createElement("span");
+    span.className = "error"; span.textContent = "Error: " + err.message;
+    $("#status").appendChild(span);
+    throw err;
+  }
+}
+
+function setBusy(value, message) {
+  busy = value;
+  $("#send").disabled = value; $("#play").disabled = value; $("#new").disabled = value;
+  if (message !== undefined) $("#status").textContent = message;
+}
+
+async function playScript() {
+  const turns = config.scenarios[$("#scenario").value];
+  await newPair();
+  stopRequested = false; $("#stop").disabled = false;
+  try {
+    for (let i = 0; i < turns.length && !stopRequested; i++) {
+      $("#status").textContent = `Turn ${i + 1} of ${turns.length}`;
+      await send(turns[i].text, turns[i].kind);
+    }
+    $("#status").textContent = stopRequested ? "Stopped." : "Script finished.";
+  } catch { /* error already shown */ }
+  $("#stop").disabled = true; setBusy(false);
+}
+
+async function sendInput() {
+  const text = $("#input").value.trim();
+  if (!text || busy) return;
+  $("#input").value = "";
+  try { await send(text); } catch { /* shown */ }
+}
+
+(async function init() {
+  costChart = makeChart($("#costChart"));
+  ctxChart = makeChart($("#ctxChart"));
+  config = await api("/api/config");
+  $("#meta").textContent = `model ${config.model} · compacts at ${config.context_limit.toLocaleString()} tokens`;
+  for (const name of Object.keys(config.scenarios)) {
+    const opt = document.createElement("option"); opt.value = opt.textContent = name;
+    $("#scenario").appendChild(opt);
+  }
+  $("#new").onclick = () => newPair();
+  $("#play").onclick = () => playScript();
+  $("#stop").onclick = () => { stopRequested = true; };
+  $("#send").onclick = () => sendInput();
+  $("#input").addEventListener("keydown", e => {
+    if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); sendInput(); }
+  });
+  await newPair();
+})();
+</script>
+</body>
+</html>

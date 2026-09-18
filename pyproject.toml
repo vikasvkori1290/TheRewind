@@ -6,14 +6,20 @@ readme = "README.md"
 requires-python = ">=3.11"
 dependencies = [
     "anthropic",
+    "fastapi>=0.141.1",
+    "uvicorn>=0.53.0",
 ]
 
 [project.scripts]
 rewind-chat = "rewind.cli:main"
 rewind-bench = "rewind.bench.cli:main"
+rewind-serve = "rewind.server:main"
 
 [dependency-groups]
-dev = ["pytest"]
+dev = [
+    "httpx>=0.28.1",
+    "pytest",
+]
 
 [build-system]
 requires = ["hatchling"]

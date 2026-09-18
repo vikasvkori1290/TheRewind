@@ -66,7 +66,14 @@ class Session:
         self.messages.append({"role": "user", "content": text})
         self._compact_if_needed()
         turn_start = len(self.messages) - 1
+        try:
+            return self._respond(turn_start)
+        except Exception:
+            # An API error mid-turn must not leave a dangling user message or tool call.
+            del self.messages[turn_start:]
+            raise
 
+    def _respond(self, turn_start: int) -> str:
         for _ in range(self._max_tool_rounds + 1):
             response = self._llm.create(system=self.system, messages=self.messages,
                                         max_tokens=self._max_output_tokens,
