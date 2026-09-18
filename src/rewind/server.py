@@ -119,16 +119,18 @@ def create_app(settings: Settings | None = None, llm: LLM | None = None,
         try:
             futures = {name: pool.submit(s.send, body.text) for name, s in pair.sessions.items()}
             # Wait for both before answering, so the lock covers all session work.
-            replies, errors = {}, []
+            replies, errors, auth_failed = {}, [], False
             for name, future in futures.items():
                 try:
                     replies[name] = future.result()
                 except anthropic.AuthenticationError:
-                    raise HTTPException(401, "The API key was rejected. Put a Console API key "
-                                             "(sk-ant-api...) in REWIND_API_KEY in rewind/.env "
-                                             "and restart the server.") from None
+                    auth_failed = True
                 except anthropic.APIError as e:
                     errors.append(f"{name}: model API error: {e.message}")
+            if auth_failed:
+                raise HTTPException(401, "The API key was rejected. Put a Console API key "
+                                         "(sk-ant-api...) in REWIND_API_KEY in rewind/.env "
+                                         "and restart the server.")
             if errors:
                 raise HTTPException(502, "; ".join(errors))
             out = {}
