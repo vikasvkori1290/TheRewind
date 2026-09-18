@@ -47,6 +47,9 @@ class Settings:
     # Rewind's own key, so it never collides with ANTHROPIC_API_KEY used by other
     # tools. When empty, the SDK falls back to its usual credential lookup.
     api_key: str | None = field(default=None, repr=False)
+    provider: str = "anthropic"  # anthropic | bedrock
+    aws_region: str | None = None  # bedrock only; falls back to AWS_REGION / AWS config
+    bedrock_auth: str = "key"  # key (Bedrock API key) | aws (AWS credentials, SigV4)
 
     @classmethod
     def from_env(cls) -> Settings:
@@ -68,4 +71,7 @@ class Settings:
             store=os.getenv("REWIND_STORE", d.store),
             data_dir=os.getenv("REWIND_DATA_DIR", d.data_dir),
             api_key=os.getenv("REWIND_API_KEY") or None,
+            provider=os.getenv("REWIND_PROVIDER", d.provider),
+            aws_region=os.getenv("REWIND_AWS_REGION") or None,
+            bedrock_auth=os.getenv("REWIND_BEDROCK_AUTH", d.bedrock_auth),
         )

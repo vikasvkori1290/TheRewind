@@ -15,10 +15,20 @@ When the conversation passes the context limit, Rewind archives the oldest turns
 ```bash
 uv sync --all-extras
 uv run pytest                 # offline tests with a fake model; no API calls
-export ANTHROPIC_API_KEY=...
+cp .env.example .env          # then fill in the provider and key
 ```
 
-Settings are environment variables; see `.env.example`.
+Settings are environment variables or lines in `.env`; see `.env.example`.
+
+### Providers
+
+| Provider | Settings | Credentials |
+| --- | --- | --- |
+| Claude API | `REWIND_PROVIDER=anthropic` | `REWIND_API_KEY` = Console key (`sk-ant-api...`). Subscription tokens (`sk-ant-oat...`) are rejected. |
+| Amazon Bedrock, API key | `REWIND_PROVIDER=bedrock` | `REWIND_API_KEY` or `AWS_BEARER_TOKEN_BEDROCK` = Bedrock API key. Short-term keys expire after at most 12 hours. |
+| Amazon Bedrock, AWS login | `REWIND_PROVIDER=bedrock`, `REWIND_BEDROCK_AUTH=aws` | `aws login` (or a profile via `AWS_PROFILE`) |
+
+On Bedrock, model IDs get the `anthropic.` prefix automatically, the server-side refusal fallback is off (Bedrock doesn't offer it), and the region comes from `REWIND_AWS_REGION`, `AWS_REGION`, or `~/.aws/config`. Claude Opus 5 needs model access granted in the Bedrock console; `REWIND_MODEL=claude-sonnet-5` or `claude-opus-4-8` are open to all accounts.
 
 ## Commands
 
@@ -44,6 +54,10 @@ claude mcp add rewind -e REWIND_DATA_DIR="$HOME/.rewind" -e REWIND_MCP_SESSION=m
 
 | Variable | Default | Meaning |
 | --- | --- | --- |
+| `REWIND_PROVIDER` | `anthropic` | `anthropic` or `bedrock` |
+| `REWIND_API_KEY` | – | Key for the provider (overrides the SDK's own variables) |
+| `REWIND_BEDROCK_AUTH` | `key` | Bedrock: `key` or `aws` |
+| `REWIND_AWS_REGION` | – | Bedrock region override |
 | `REWIND_MODEL` | `claude-opus-5` | Model for chat and summaries |
 | `REWIND_CONTEXT_LIMIT` | `8000` | Tokens before compaction (small for demos) |
 | `REWIND_KEEP_RECENT_MESSAGES` | `4` | Latest messages never compacted |

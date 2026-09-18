@@ -20,6 +20,9 @@ rewind-mcp = "rewind.mcp_server:main"
 mcp = [
     "mcp>=2.2.0",
 ]
+bedrock = [
+    "anthropic[bedrock]>=1.6.0",
+]
 
 [dependency-groups]
 dev = [
