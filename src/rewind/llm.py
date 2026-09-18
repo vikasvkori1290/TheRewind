@@ -7,6 +7,7 @@ Providers:
 - anthropic: the Claude API (key in REWIND_API_KEY or ANTHROPIC_API_KEY).
 - bedrock: Claude in Amazon Bedrock (Messages API endpoint). Authenticates with a
   Bedrock API key in AWS_BEARER_TOKEN_BEDROCK, or the usual AWS credential chain.
+- nim: NVIDIA NIM or any OpenAI-compatible API, via `openai_compat.py`.
 """
 
 from __future__ import annotations
@@ -79,6 +80,15 @@ def make_client(settings: Settings):
             kwargs["api_key"] = settings.api_key
         return anthropic.AnthropicBedrockMantle(**kwargs)
     raise ValueError(f"unknown provider {settings.provider!r}; use 'anthropic' or 'bedrock'")
+
+
+def make_llm(settings: Settings) -> LLM:
+    """The model gateway for the configured provider."""
+    if settings.provider == "nim":
+        from rewind.openai_compat import OpenAICompatLLM
+
+        return OpenAICompatLLM(settings)
+    return AnthropicLLM(settings)
 
 
 def estimate_tokens(system: str, messages: list[dict], tools: list[dict] | None) -> int:

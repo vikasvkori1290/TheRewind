@@ -10,7 +10,7 @@ import argparse
 
 from rewind.config import Settings
 from rewind.factory import build_session
-from rewind.llm import AnthropicLLM
+from rewind.llm import make_llm
 from rewind.pricing import estimate_cost
 from rewind.store_factory import open_archive
 
@@ -22,7 +22,7 @@ def main() -> None:
 
     settings = Settings.from_env()
     strategy = "plain" if args.plain else "rewind"
-    session = build_session(strategy, settings, AnthropicLLM(settings),
+    session = build_session(strategy, settings, make_llm(settings),
                             archive=open_archive(settings))
     print(f"Rewind chat · {strategy} · model {settings.model} · "
           f"limit {settings.context_limit} tokens · session {session.id}")

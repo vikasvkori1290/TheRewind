@@ -27,6 +27,14 @@ def _flag(name: str, default: bool) -> bool:
     return default if value is None else value.lower() not in ("0", "false", "no", "")
 
 
+def _api_key(provider: str) -> str | None:
+    # REWIND_API_KEY wins; NIM also accepts NVIDIA's standard variable.
+    key = os.getenv("REWIND_API_KEY")
+    if not key and provider == "nim":
+        key = os.getenv("NVIDIA_API_KEY")
+    return key or None
+
+
 @dataclass(frozen=True)
 class Settings:
     model: str = "claude-opus-5"
@@ -47,7 +55,9 @@ class Settings:
     # Rewind's own key, so it never collides with ANTHROPIC_API_KEY used by other
     # tools. When empty, the SDK falls back to its usual credential lookup.
     api_key: str | None = field(default=None, repr=False)
-    provider: str = "anthropic"  # anthropic | bedrock
+    provider: str = "anthropic"  # anthropic | bedrock | nim (any OpenAI-compatible API)
+    base_url: str | None = None  # nim only; defaults to NVIDIA's hosted endpoint
+    request_timeout: float = 600.0
     aws_region: str | None = None  # bedrock only; falls back to AWS_REGION / AWS config
     bedrock_auth: str = "key"  # key (Bedrock API key) | aws (AWS credentials, SigV4)
 
@@ -70,8 +80,10 @@ class Settings:
             prompt_caching=_flag("REWIND_PROMPT_CACHING", d.prompt_caching),
             store=os.getenv("REWIND_STORE", d.store),
             data_dir=os.getenv("REWIND_DATA_DIR", d.data_dir),
-            api_key=os.getenv("REWIND_API_KEY") or None,
+            api_key=_api_key(os.getenv("REWIND_PROVIDER", d.provider)),
             provider=os.getenv("REWIND_PROVIDER", d.provider),
+            base_url=os.getenv("REWIND_BASE_URL") or None,
+            request_timeout=float(os.getenv("REWIND_REQUEST_TIMEOUT", d.request_timeout)),
             aws_region=os.getenv("REWIND_AWS_REGION") or None,
             bedrock_auth=os.getenv("REWIND_BEDROCK_AUTH", d.bedrock_auth),
         )

@@ -25,7 +25,7 @@ from pydantic import BaseModel, Field
 from rewind.bench.scenarios import SCENARIOS
 from rewind.config import Settings
 from rewind.factory import build_session
-from rewind.llm import LLM, AnthropicLLM
+from rewind.llm import LLM, make_llm
 from rewind.pricing import estimate_cost
 from rewind.session import Session
 from rewind.store import ArchiveStore
@@ -66,7 +66,7 @@ def create_app(settings: Settings | None = None, llm: LLM | None = None,
                archive: ArchiveStore | None = None) -> FastAPI:
     settings = settings or Settings.from_env()
     archive = archive or open_archive(settings)
-    get_llm: Callable[[], LLM] = (lambda: llm) if llm else (lambda: AnthropicLLM(settings))
+    get_llm: Callable[[], LLM] = (lambda: llm) if llm else (lambda: make_llm(settings))
     pairs: OrderedDict[str, Pair] = OrderedDict()
     pairs_lock = threading.Lock()
     pool = ThreadPoolExecutor(max_workers=8)

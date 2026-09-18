@@ -94,7 +94,7 @@
   <button class="primary" id="send">Send</button>
 </div>
 <div class="charts">
-  <div class="chart"><h3>Cumulative cost (USD, estimated)</h3><canvas id="costChart" height="160"></canvas></div>
+  <div class="chart"><h3 id="costTitle">Cumulative cost (USD, estimated)</h3><canvas id="costChart" height="160"></canvas></div>
   <div class="chart"><h3>Context size before each call (tokens)</h3><canvas id="ctxChart" height="160"></canvas></div>
 </div>
 <script>
@@ -150,7 +150,10 @@ function renderStats(side, s) {
 function pushCharts(turn, data) {
   for (const chart of [costChart, ctxChart]) chart.data.labels.push(turn);
   SIDES.forEach((side, i) => {
-    costChart.data.datasets[i].data.push(data[side].state.cost_usd);
+    const st = data[side].state;
+    // Models without a known price (e.g. NIM) chart cumulative tokens instead.
+    costChart.data.datasets[i].data.push(st.cost_usd ?? st.usage.total_tokens);
+    if (st.cost_usd == null) $("#costTitle").textContent = "Cumulative tokens (no price for this model)";
     ctxChart.data.datasets[i].data.push(data[side].state.context_tokens);
   });
   costChart.update(); ctxChart.update();

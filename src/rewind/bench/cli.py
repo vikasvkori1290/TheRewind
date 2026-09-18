@@ -14,7 +14,7 @@ from rewind.bench.runner import run_benchmark, summarize, write_report
 from rewind.bench.scenarios import SCENARIOS
 from rewind.config import Settings
 from rewind.factory import STRATEGIES
-from rewind.llm import AnthropicLLM
+from rewind.llm import make_llm
 from rewind.store_factory import open_archive
 
 
@@ -53,7 +53,7 @@ def main() -> None:
 
     out_dir = Path(args.out) / datetime.now().strftime("%Y%m%d-%H%M%S")
     archive = open_archive(settings, out_dir / "archive")
-    results = run_benchmark(scenarios, strategies, settings, AnthropicLLM(settings), archive,
+    results = run_benchmark(scenarios, strategies, settings, make_llm(settings), archive,
                             runs=args.runs, progress=lambda msg: print(f"  {msg}", end="\r"))
     print()
     json_path, md_path = write_report(results, out_dir, settings.model)

@@ -588,6 +588,23 @@ wheels = [
 ]
 
 [[package]]
+name = "openai"
+version = "3.15.0"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "anyio" },
+    { name = "httpx2" },
+    { name = "jiter" },
+    { name = "pydantic" },
+    { name = "sniffio" },
+    { name = "typing-extensions" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/82/6b/f086332d9fdefcc3853f2457209fcf221985d01d32b5021ab8096be7d506/openai-3.15.0.tar.gz", hash = "sha256:47bc15f8b9db62ba9ff7fa32164c72f4fd6333b22d890251292aac1c6bfe998f", size = 1664554, upload-time = "2026-09-18T00:53:05.192Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/fb/92/fc65194e6e92cf0202a2e5fff75e2fef62e7dbb7a6cf2b48c1239dfedb50/openai-3.15.0-py3-none-any.whl", hash = "sha256:95d6b2caf3823c7e0fc08911317b7f31b9f9ccf93b414e7a5c8d5b226af115f6", size = 2018693, upload-time = "2026-09-18T00:53:02.507Z" },
+]
+
+[[package]]
 name = "opentelemetry-api"
 version = "1.44.0"
 source = { registry = "https://pypi.org/simple" }
@@ -856,6 +873,9 @@ bedrock = [
 mcp = [
     { name = "mcp" },
 ]
+nim = [
+    { name = "openai" },
+]
 
 [package.dev-dependencies]
 dev = [
@@ -869,9 +889,10 @@ requires-dist = [
     { name = "anthropic", extras = ["bedrock"], marker = "extra == 'bedrock'", specifier = ">=1.6.0" },
     { name = "fastapi", specifier = ">=0.141.1" },
     { name = "mcp", marker = "extra == 'mcp'", specifier = ">=2.2.0" },
+    { name = "openai", marker = "extra == 'nim'", specifier = ">=3.15.0" },
     { name = "uvicorn", specifier = ">=0.53.0" },
 ]
-provides-extras = ["mcp", "bedrock"]
+provides-extras = ["mcp", "bedrock", "nim"]
 
 [package.metadata.requires-dev]
 dev = [

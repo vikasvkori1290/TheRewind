@@ -27,6 +27,11 @@ Settings are environment variables or lines in `.env`; see `.env.example`.
 | Claude API | `REWIND_PROVIDER=anthropic` | `REWIND_API_KEY` = Console key (`sk-ant-api...`). Subscription tokens (`sk-ant-oat...`) are rejected. |
 | Amazon Bedrock, API key | `REWIND_PROVIDER=bedrock` | `REWIND_API_KEY` or `AWS_BEARER_TOKEN_BEDROCK` = Bedrock API key. Short-term keys expire after at most 12 hours. |
 | Amazon Bedrock, AWS login | `REWIND_PROVIDER=bedrock`, `REWIND_BEDROCK_AUTH=aws` | `aws login` (or a profile via `AWS_PROFILE`) |
+| NVIDIA NIM (or any OpenAI-compatible API) | `REWIND_PROVIDER=nim`, `REWIND_MODEL=openai/gpt-oss-20b`, optional `REWIND_BASE_URL` | `REWIND_API_KEY` or `NVIDIA_API_KEY` (`nvapi-...`) |
+
+On NIM, choose a model that supports tool calling: `openai/gpt-oss-20b` is fast; `deepseek-ai/deepseek-v4-flash-0731` works but is slow. Token counts are estimated (about 4 characters per token) and cost shows as tokens because NIM models have no price in `pricing.py`. Set `REWIND_MAX_OUTPUT_TOKENS=4096` for NIM models with smaller output limits.
+
+A Claude Pro or Max subscription can't be used: its login token (`sk-ant-oat...`) only works in Claude apps and Claude Code.
 
 On Bedrock, model IDs get the `anthropic.` prefix automatically, the server-side refusal fallback is off (Bedrock doesn't offer it), and the region comes from `REWIND_AWS_REGION`, `AWS_REGION`, or `~/.aws/config`. Claude Opus 5 needs model access granted in the Bedrock console; `REWIND_MODEL=claude-sonnet-5` or `claude-opus-4-8` are open to all accounts.
 
@@ -54,7 +59,8 @@ claude mcp add rewind -e REWIND_DATA_DIR="$HOME/.rewind" -e REWIND_MCP_SESSION=m
 
 | Variable | Default | Meaning |
 | --- | --- | --- |
-| `REWIND_PROVIDER` | `anthropic` | `anthropic` or `bedrock` |
+| `REWIND_PROVIDER` | `anthropic` | `anthropic`, `bedrock` or `nim` |
+| `REWIND_BASE_URL` | NIM endpoint | nim: any OpenAI-compatible base URL |
 | `REWIND_API_KEY` | – | Key for the provider (overrides the SDK's own variables) |
 | `REWIND_BEDROCK_AUTH` | `key` | Bedrock: `key` or `aws` |
 | `REWIND_AWS_REGION` | – | Bedrock region override |
