@@ -3,8 +3,9 @@ import json
 import pytest
 
 from rewind.store import JsonlArchive, content_id
+from rewind.store_sqlite import SqliteArchive
 
-STORES = {"jsonl": JsonlArchive}
+STORES = {"jsonl": JsonlArchive, "sqlite": SqliteArchive}
 
 
 @pytest.fixture(params=sorted(STORES))
