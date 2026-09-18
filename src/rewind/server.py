@@ -123,6 +123,10 @@ def create_app(settings: Settings | None = None, llm: LLM | None = None,
             for name, future in futures.items():
                 try:
                     replies[name] = future.result()
+                except anthropic.AuthenticationError:
+                    raise HTTPException(401, "The API key was rejected. Put a Console API key "
+                                             "(sk-ant-api...) in REWIND_API_KEY in rewind/.env "
+                                             "and restart the server.") from None
                 except anthropic.APIError as e:
                     errors.append(f"{name}: model API error: {e.message}")
             if errors:

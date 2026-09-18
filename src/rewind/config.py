@@ -3,7 +3,23 @@
 from __future__ import annotations
 
 import os
-from dataclasses import dataclass
+from dataclasses import dataclass, field
+from pathlib import Path
+
+
+def load_dotenv(path: str | Path = ".env") -> None:
+    """Load KEY=VALUE lines into the environment without overriding existing variables."""
+    path = Path(path)
+    if not path.is_file():
+        return
+    for line in path.read_text().splitlines():
+        line = line.strip()
+        if not line or line.startswith("#") or "=" not in line:
+            continue
+        key, value = line.split("=", 1)
+        value = value.strip().strip('"').strip("'")
+        if value:
+            os.environ.setdefault(key.strip(), value)
 
 
 def _flag(name: str, default: bool) -> bool:
@@ -28,9 +44,13 @@ class Settings:
     prompt_caching: bool = True
     store: str = "jsonl"  # jsonl | sqlite
     data_dir: str = "data"
+    # Rewind's own key, so it never collides with ANTHROPIC_API_KEY used by other
+    # tools. When empty, the SDK falls back to its usual credential lookup.
+    api_key: str | None = field(default=None, repr=False)
 
     @classmethod
     def from_env(cls) -> Settings:
+        load_dotenv()
         d = cls()
         return cls(
             model=os.getenv("REWIND_MODEL", d.model),
@@ -47,4 +67,5 @@ class Settings:
             prompt_caching=_flag("REWIND_PROMPT_CACHING", d.prompt_caching),
             store=os.getenv("REWIND_STORE", d.store),
             data_dir=os.getenv("REWIND_DATA_DIR", d.data_dir),
+            api_key=os.getenv("REWIND_API_KEY") or None,
         )

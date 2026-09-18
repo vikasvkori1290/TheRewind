@@ -47,3 +47,20 @@ def test_count_tokens_passes_tools():
     c, plain, _ = client()
     n = AnthropicLLM(Settings(), c).count_tokens(system="s", messages=[], tools=[{"name": "t"}])
     assert n == 42 and plain.calls[0]["tools"] == [{"name": "t"}]
+
+
+def test_rewind_api_key_is_used_and_hidden(monkeypatch, tmp_path):
+    from rewind.config import load_dotenv
+
+    env = tmp_path / ".env"
+    env.write_text("# comment\nREWIND_API_KEY='sk-ant-api-test'\nREWIND_MODEL=\n")
+    monkeypatch.delenv("REWIND_API_KEY", raising=False)
+    monkeypatch.chdir(tmp_path)
+    s = Settings.from_env()
+    assert s.api_key == "sk-ant-api-test"
+    assert "sk-ant" not in repr(s)
+    assert s.model == "claude-opus-5"  # empty values are ignored
+    monkeypatch.setenv("REWIND_API_KEY", "from-shell")
+    load_dotenv(env)
+    import os
+    assert os.environ["REWIND_API_KEY"] == "from-shell"  # shell wins over .env

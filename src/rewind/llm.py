@@ -32,7 +32,7 @@ class AnthropicLLM:
         self.model = settings.model
         self._fallbacks = settings.refusal_fallbacks
         self._caching = settings.prompt_caching
-        self._client = client or anthropic.Anthropic()
+        self._client = client or anthropic.Anthropic(api_key=settings.api_key)
 
     def create(self, *, system, messages, max_tokens, tools=None):
         kwargs: dict[str, Any] = dict(
