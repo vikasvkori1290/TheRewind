@@ -22,7 +22,7 @@ Rewind is built in eight phases. Each phase ends with passing tests and a workin
 | 4 | Recall tool, threshold, failed-search memory | `recall.py`, `session.py` tool loop | Model recalls a planted fact by ID and by search; unknown facts return NOT_FOUND |
 | 5 | Metrics and benchmark | `pricing.py`, `bench/` | Benchmark runs all three setups and writes a results file |
 | 6 | API server and split-screen demo UI | `server.py`, `web/index.html` | Two panes and a live token/cost chart update each turn |
-| 7 | Stretch: MCP server, cache-aware compaction, SQLite | `mcp_server.py`, `store_sqlite.py` | Chosen stretch goal works end to end |
+| 7 | Prompt caching, SQLite store, MCP server | `llm.py`, `store_sqlite.py`, `mcp_server.py` | Same store tests pass on SQLite; MCP tools answer over stdio |
 
 ## Phase details
 
@@ -66,7 +66,11 @@ Rewind is built in eight phases. Each phase ends with passing tests and a workin
 - Single page (`src/rewind/web/index.html`): two chat panes, per-pane stats and context meter, compaction and recall markers, a "Play demo script" button for the scenarios, and live charts of cumulative cost and context size. Model output is rendered as text, never HTML.
 
 ### Phase 7: Stretch
-- Pick one: MCP server exposing `recall`; cache-aware compaction with `cache_read_input_tokens` on the dashboard; SQLite storage.
+- All three built: automatic prompt caching (cache reads counted in usage and cost); `SqliteArchive` (FTS5, same tests as JSONL, `REWIND_STORE=sqlite`); MCP server (`rewind-mcp`) with `remember`, `recall` and `list_memories`.
+
+## Not yet verified
+- No live API run yet: all tests use fake models. Run `uv run rewind-bench` to get real accuracy and cost numbers.
+- The demo page was checked over HTTP with a fake model, not visually in a browser.
 
 ## Cost control
 - Unit tests never call the API.
@@ -82,4 +86,4 @@ Rewind is built in eight phases. Each phase ends with passing tests and a workin
 - [x] Phase 4: Recall
 - [x] Phase 5: Metrics and benchmark
 - [x] Phase 6: Server and UI
-- [ ] Phase 7: Stretch
+- [x] Phase 7: Prompt caching, SQLite store, MCP server
