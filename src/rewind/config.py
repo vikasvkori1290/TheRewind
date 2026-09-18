@@ -6,6 +6,11 @@ import os
 from dataclasses import dataclass
 
 
+def _flag(name: str, default: bool) -> bool:
+    value = os.getenv(name)
+    return default if value is None else value.lower() not in ("0", "false", "no", "")
+
+
 @dataclass(frozen=True)
 class Settings:
     model: str = "claude-opus-5"
@@ -15,8 +20,13 @@ class Settings:
     keep_recent_messages: int = 4
     max_output_tokens: int = 16_000
     summary_max_tokens: int = 2_000
+    # Share of meaningful query terms a search hit must contain (0-1).
+    recall_min_coverage: float = 0.5
     # Server-side refusal fallback (Claude API only; disable on Bedrock/Vertex/Foundry).
     refusal_fallbacks: bool = True
+    # Automatic prompt caching of the conversation prefix.
+    prompt_caching: bool = True
+    store: str = "jsonl"  # jsonl | sqlite
     data_dir: str = "data"
 
     @classmethod
@@ -30,6 +40,11 @@ class Settings:
             ),
             max_output_tokens=int(os.getenv("REWIND_MAX_OUTPUT_TOKENS", d.max_output_tokens)),
             summary_max_tokens=int(os.getenv("REWIND_SUMMARY_MAX_TOKENS", d.summary_max_tokens)),
-            refusal_fallbacks=os.getenv("REWIND_REFUSAL_FALLBACKS", "1") not in ("0", "false"),
+            recall_min_coverage=float(
+                os.getenv("REWIND_RECALL_MIN_COVERAGE", d.recall_min_coverage)
+            ),
+            refusal_fallbacks=_flag("REWIND_REFUSAL_FALLBACKS", d.refusal_fallbacks),
+            prompt_caching=_flag("REWIND_PROMPT_CACHING", d.prompt_caching),
+            store=os.getenv("REWIND_STORE", d.store),
             data_dir=os.getenv("REWIND_DATA_DIR", d.data_dir),
         )

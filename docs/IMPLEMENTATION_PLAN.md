@@ -49,7 +49,9 @@ Rewind is built in eight phases. Each phase ends with passing tests and a workin
 - Gist: the user's first line plus any function or class names defined in the turn.
 
 ### Phase 4: Recall
-- `recall` tool definition, handler with ID lookup, BM25 fallback, score threshold, gist/full levels.
+- `recall` tool definition, handler with ID lookup, BM25 fallback, a query-coverage threshold (default 0.5), gist/full levels.
+- The session runs a bounded tool loop (5 rounds), keeps each tool_use paired with its tool_result, and rolls back the whole turn on a refusal.
+- `factory.py` builds `none`, `plain` and `rewind` sessions, so the CLI, server and benchmark agree.
 - Remember failed queries per session and return NOT_FOUND without searching again.
 - Recalled text wrapped as quoted archive content (it is data, not instructions).
 
@@ -75,7 +77,7 @@ Rewind is built in eight phases. Each phase ends with passing tests and a workin
 - [x] Phase 1: Chat loop, token counting, plain compaction
 - [x] Phase 2: Archive store
 - [x] Phase 3: Rewind compaction
-- [ ] Phase 4: Recall
+- [x] Phase 4: Recall
 - [ ] Phase 5: Metrics and benchmark
 - [ ] Phase 6: Server and UI
 - [ ] Phase 7: Stretch
