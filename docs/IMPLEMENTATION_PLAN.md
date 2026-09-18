@@ -20,7 +20,7 @@ Rewind is built in eight phases. Each phase ends with passing tests and a workin
 | 2 | Archive store (JSONL + hash files + BM25) | `store.py` | Dedupe, reload and session-isolated search tests pass |
 | 3 | Rewind compaction with pointers | `compaction.py` (`RewindCompactor`) | Every pointer in a summary resolves to an archived record |
 | 4 | Recall tool, threshold, failed-search memory | `recall.py`, `session.py` tool loop | Model recalls a planted fact by ID and by search; unknown facts return NOT_FOUND |
-| 5 | Metrics and benchmark | `metrics.py`, `eval/` | Benchmark runs all four setups and writes a results file |
+| 5 | Metrics and benchmark | `pricing.py`, `bench/` | Benchmark runs all three setups and writes a results file |
 | 6 | API server and split-screen demo UI | `server.py`, `web/` | Two panes and a live token/cost chart update each turn |
 | 7 | Stretch: MCP server, cache-aware compaction, SQLite | `mcp_server.py`, `store_sqlite.py` | Chosen stretch goal works end to end |
 
@@ -57,7 +57,9 @@ Rewind is built in eight phases. Each phase ends with passing tests and a workin
 
 ### Phase 5: Metrics and benchmark
 - Cost estimate from per-model prices.
-- Scripted conversations with planted facts; runner for four setups; exact-match grading for code and numbers; results saved as JSON and a Markdown table.
+- Two scripted scenarios (billing service, mobile app), each with 4 planted facts (code, numbers, a person, a decision), 14 filler turns and 4 graded questions plus 1 control question about something never discussed.
+- Three setups: `none` (no compaction, upper bound), `plain`, `rewind`. The "recent window + running summary" setup is what `plain` already does.
+- `uv run rewind-bench` asks for confirmation (live API), then writes `results/<timestamp>/results.json` and `report.md` with accuracy, tokens, cost and tokens per correct answer.
 
 ### Phase 6: Server and UI
 - FastAPI: create session (plain or Rewind), send message, get metrics, list archive.
@@ -78,6 +80,6 @@ Rewind is built in eight phases. Each phase ends with passing tests and a workin
 - [x] Phase 2: Archive store
 - [x] Phase 3: Rewind compaction
 - [x] Phase 4: Recall
-- [ ] Phase 5: Metrics and benchmark
+- [x] Phase 5: Metrics and benchmark
 - [ ] Phase 6: Server and UI
 - [ ] Phase 7: Stretch

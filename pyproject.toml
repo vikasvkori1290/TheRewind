@@ -10,6 +10,7 @@ dependencies = [
 
 [project.scripts]
 rewind-chat = "rewind.cli:main"
+rewind-bench = "rewind.bench.cli:main"
 
 [dependency-groups]
 dev = ["pytest"]
