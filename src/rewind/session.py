@@ -6,7 +6,7 @@ from typing import Protocol
 
 from rewind.compaction import Compactor
 from rewind.llm import LLM
-from rewind.messages import response_text
+from rewind.messages import append_text, response_text
 from rewind.metrics import CompactionEvent, Usage
 from rewind.recall import ToolOutcome
 
@@ -17,9 +17,23 @@ TOOL_LIMIT_REPLY = "[Stopped after too many tool calls in one turn.]"
 
 class ToolBox(Protocol):
     @property
+    def active(self) -> bool:
+        """False until the tools are useful; inactive tools cost no tokens."""
+        ...
+
+    @property
     def definitions(self) -> list[dict]: ...
 
+    @property
+    def system_note(self) -> str: ...
+
     def handle(self, name: str, tool_input: dict, turn: int) -> ToolOutcome: ...
+
+    def prefetch(self, text: str, turn: int) -> str | None:
+        """Context to attach to a user message up front, saving a tool round trip."""
+        ...
+
+    def on_compaction(self, remaining: list[dict]) -> None: ...
 
 
 class Session:
@@ -35,7 +49,7 @@ class Session:
         max_tool_rounds: int = 5,
     ):
         self.id = session_id
-        self.system = system
+        self._base_system = system
         self.messages: list[dict] = []
         self.usage = Usage()
         self.compaction_usage = Usage()
@@ -54,8 +68,18 @@ class Session:
         return self._compactor.name
 
     @property
+    def _tools_active(self) -> bool:
+        return bool(self.tools and self.tools.active)
+
+    @property
+    def system(self) -> str:
+        if self._tools_active:
+            return f"{self._base_system}\n\n{self.tools.system_note}"
+        return self._base_system
+
+    @property
     def _tool_defs(self) -> list[dict] | None:
-        return self.tools.definitions if self.tools else None
+        return self.tools.definitions if self._tools_active else None
 
     def count_tokens(self) -> int:
         return self._llm.count_tokens(system=self.system, messages=self.messages,
@@ -66,6 +90,8 @@ class Session:
         self.messages.append({"role": "user", "content": text})
         self._compact_if_needed()
         turn_start = len(self.messages) - 1
+        if self._tools_active and (extra := self.tools.prefetch(text, self.turn)):
+            self.messages[turn_start] = append_text(self.messages[turn_start], extra)
         try:
             return self._respond(turn_start)
         except Exception:
@@ -85,7 +111,7 @@ class Session:
                 return REFUSAL_REPLY
             # Append the full content, not just the text, so tool calls survive.
             self.messages.append({"role": "assistant", "content": response.content})
-            if response.stop_reason != "tool_use" or not self.tools:
+            if response.stop_reason != "tool_use" or not self._tools_active:
                 return response_text(response)
             self.messages.append({"role": "user", "content": self._run_tools(response)})
         return TOOL_LIMIT_REPLY
@@ -111,6 +137,8 @@ class Session:
             return
         self.messages = result.messages
         self.compaction_usage.add(result.usage)
+        if self.tools:
+            self.tools.on_compaction(self.messages)
         self.context_tokens = self.count_tokens()
         self.compactions.append(
             CompactionEvent(

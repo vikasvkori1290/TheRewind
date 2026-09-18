@@ -2,7 +2,7 @@ import json
 import re
 
 from rewind.bench.grading import grade, grade_control, normalize
-from rewind.bench.runner import run_benchmark, summarize, write_report
+from rewind.bench.runner import Variant, run_benchmark, summarize, write_report
 from rewind.bench.scenarios import SCENARIOS
 from rewind.config import Settings
 from rewind.messages import to_text
@@ -82,3 +82,14 @@ def test_benchmark_pipeline_and_report(tmp_path):
     assert "| strategy |" in md_path.read_text()
     rows = {r["strategy"]: r for r in summarize(results)}
     assert rows["rewind"]["accuracy"] > rows["plain"]["accuracy"]
+
+
+def test_variant_with_smaller_limit_compacts_more(tmp_path):
+    settings = Settings(context_limit=8_000)
+    results = run_benchmark([SCENARIOS["billing-service"]],
+                            ["rewind", Variant("rewind@3000", "rewind", 3000)],
+                            settings, OracleLLM(), JsonlArchive(tmp_path / "archive"))
+    by = {r.strategy: r for r in results}
+    assert by["rewind@3000"].compactions > by["rewind"].compactions
+    rows = {r["strategy"]: r for r in summarize(results)}
+    assert rows["rewind@3000"]["model_calls"] > 0

@@ -50,10 +50,25 @@ class RunResult:
 Progress = Callable[[str], None]
 
 
-def run_scenario(scenario: Scenario, strategy: str, settings: Settings, llm: LLM,
+@dataclass(frozen=True)
+class Variant:
+    """A strategy run under a label, optionally with its own context limit."""
+
+    label: str
+    strategy: str
+    context_limit: int | None = None
+
+    @classmethod
+    def of(cls, strategy: str) -> Variant:
+        return cls(strategy, strategy)
+
+
+def run_scenario(scenario: Scenario, variant: Variant | str, settings: Settings, llm: LLM,
                  archive: ArchiveStore, run: int = 1, progress: Progress | None = None) -> RunResult:
-    sid = f"{scenario.name}-{strategy}-{run}-{uuid.uuid4().hex[:6]}"
-    session = build_session(strategy, settings, llm, archive=archive, session_id=sid)
+    variant = Variant.of(variant) if isinstance(variant, str) else variant
+    sid = f"{scenario.name}-{variant.strategy}-{run}-{uuid.uuid4().hex[:6]}"
+    session = build_session(variant.strategy, settings, llm, archive=archive, session_id=sid,
+                            context_limit=variant.context_limit)
     started = time.monotonic()
     results = []
     for i, turn in enumerate(scenario.turns, 1):
@@ -63,11 +78,11 @@ def run_scenario(scenario: Scenario, strategy: str, settings: Settings, llm: LLM
         elif turn.kind == "control":
             results.append(QuestionResult("control", turn.text, answer, grade_control(answer)))
         if progress:
-            progress(f"{scenario.name}/{strategy} run {run}: turn {i}/{len(scenario.turns)} "
+            progress(f"{scenario.name}/{variant.label} run {run}: turn {i}/{len(scenario.turns)} "
                      f"context {session.context_tokens} tokens")
     usage = session.total_usage
     return RunResult(
-        scenario=scenario.name, strategy=strategy, run=run,
+        scenario=scenario.name, strategy=variant.label, run=run,
         seconds=round(time.monotonic() - started, 1),
         usage={**asdict(usage), "total_tokens": usage.total_tokens},
         cost_usd=estimate_cost(usage, settings.model),
@@ -77,14 +92,14 @@ def run_scenario(scenario: Scenario, strategy: str, settings: Settings, llm: LLM
     )
 
 
-def run_benchmark(scenarios: list[Scenario], strategies: list[str], settings: Settings,
+def run_benchmark(scenarios: list[Scenario], variants: list[Variant | str], settings: Settings,
                   llm: LLM, archive: ArchiveStore, runs: int = 1,
                   progress: Progress | None = None) -> list[RunResult]:
     return [
-        run_scenario(sc, strategy, settings, llm, archive, run, progress)
+        run_scenario(sc, variant, settings, llm, archive, run, progress)
         for run in range(1, runs + 1)
         for sc in scenarios
-        for strategy in strategies
+        for variant in variants
     ]
 
 
@@ -112,7 +127,9 @@ def summarize(results: list[RunResult]) -> list[dict]:
             "tokens_per_correct": round(tokens / correct) if correct else None,
             "compactions": sum(r.compactions for r in rs),
             "recall_hits": sum((r.recall or {}).get("hits_by_id", 0)
-                               + (r.recall or {}).get("hits_by_search", 0) for r in rs),
+                               + (r.recall or {}).get("hits_by_search", 0)
+                               + (r.recall or {}).get("prefetches", 0) for r in rs),
+            "model_calls": sum(r.usage["calls"] for r in rs),
         })
     return rows
 
@@ -126,7 +143,7 @@ def write_report(results: list[RunResult], out_dir: Path, model: str) -> tuple[P
 
     cols = ["strategy", "accuracy", "correct", "questions", "controls_passed", "input_tokens",
             "output_tokens", "cache_read_tokens", "total_tokens", "cost_usd",
-            "tokens_per_correct", "compactions", "recall_hits"]
+            "tokens_per_correct", "compactions", "recall_hits", "model_calls"]
     lines = [f"# Rewind benchmark\n\nModel: `{model}`\n",
              "| " + " | ".join(cols) + " |", "|" + " --- |" * len(cols)]
     lines += ["| " + " | ".join("" if row[c] is None else str(row[c]) for c in cols) + " |"

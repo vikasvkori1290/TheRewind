@@ -44,13 +44,42 @@ def test_planted_code_is_recalled_verbatim_after_compaction(tmp_path):
     assert session.messages[-2]["content"][0]["type"] == "tool_result"
 
 
-def test_rewind_sends_recall_tool_and_system_prompt(tmp_path):
+def active_session(tmp_path, llm, sid="s"):
+    """A Rewind session whose archive already has a turn, so its tools are active."""
+    archive = JsonlArchive(tmp_path)
+    archive.put("user: earlier turn", session=sid, gist="earlier")
+    return build_session("rewind", SETTINGS, llm, archive=archive, session_id=sid)
+
+
+def test_recall_tool_is_only_sent_after_the_first_compaction(tmp_path):
     llm = FakeLLM()
-    session = build_session("rewind", SETTINGS, llm, archive=JsonlArchive(tmp_path))
+    session = build_session("rewind", SETTINGS, llm, archive=JsonlArchive(tmp_path), session_id="s")
     session.send("hi")
+    assert llm.calls[-1]["tools"] is None
+    assert "recall tool" not in llm.calls[-1]["system"]
+    fill(session, 6)
+    assert session.compactions
     call = llm.calls[-1]
     assert call["tools"][0]["name"] == "recall"
     assert "recall tool" in call["system"]
+
+
+def test_named_identifier_is_attached_without_a_tool_call(tmp_path):
+    llm = FakeLLM()
+    session = build_session("rewind", SETTINGS, llm, archive=JsonlArchive(tmp_path), session_id="s")
+    session.send(f"Keep this function:\n{CODE}")
+    fill(session, 6)
+    def chat_calls():  # model calls excluding compaction summaries
+        return [c for c in llm.calls if "Summarize the conversation" not in str(c["messages"][0])]
+
+    before = len(chat_calls())
+    session.send("Show me compute_late_fee again.")
+    sent = llm.calls[-1]["messages"][-1]["content"]
+    assert CODE in sent and "attached automatically" in sent
+    assert len(chat_calls()) == before + 1  # one model call, no recall round trip
+    assert session.tools.stats.prefetches == 1
+    session.send("And compute_late_fee once more?")  # already attached: not repeated
+    assert session.tools.stats.prefetches == 1
 
 
 def test_plain_session_has_no_tools(tmp_path):
@@ -62,13 +91,13 @@ def test_plain_session_has_no_tools(tmp_path):
 
 def test_tool_loop_is_bounded(tmp_path):
     llm = FakeLLM(replies=[fake_tool_call({"query": f"thing {i}"}, f"c{i}") for i in range(10)])
-    session = build_session("rewind", SETTINGS, llm, archive=JsonlArchive(tmp_path))
+    session = active_session(tmp_path, llm)
     assert session.send("loop please") == TOOL_LIMIT_REPLY
 
 
 def test_refusal_mid_tool_loop_rolls_back_the_turn(tmp_path):
     llm = FakeLLM(replies=[fake_tool_call({"query": "x"}), fake_response("", stop_reason="refusal")])
-    session = build_session("rewind", SETTINGS, llm, archive=JsonlArchive(tmp_path))
+    session = active_session(tmp_path, llm)
     session.send("first")
     before = list(session.messages)
     llm.replies = [fake_tool_call({"query": "x"}), fake_response("", stop_reason="refusal")]

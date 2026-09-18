@@ -132,7 +132,7 @@ function add(side, cls, text) {
 function fmt(n) { return n == null ? "–" : n.toLocaleString(); }
 
 function renderStats(side, s) {
-  const recalls = s.recall ? s.recall.hits_by_id + s.recall.hits_by_search : "–";
+  const recalls = s.recall ? s.recall.hits_by_id + s.recall.hits_by_search + s.recall.prefetches : "–";
   $(".stats", pane(side)).innerHTML = "";
   [["context", fmt(s.context_tokens)], ["total tokens", fmt(s.usage.total_tokens)],
    ["cost", s.cost_usd == null ? "–" : "$" + s.cost_usd.toFixed(4)],
@@ -193,7 +193,7 @@ async function send(text, kind = "message") {
         add(side, "event", `— compacted: ${c.removed_messages} messages, ` +
                            `${fmt(c.tokens_before)} → ${fmt(c.tokens_after)} tokens —`);
       for (const e of r.new_recalls)
-        add(side, "recall", `↺ recall ${e.outcome.replace("_", " ")}: ` +
+        add(side, "recall", `↺ ${e.outcome === "prefetch" ? "attached from archive" : "recall " + e.outcome.replace("_", " ")}: ` +
                             `${e.id ? "§" + e.id : JSON.stringify(e.query)} (${e.level})`);
       add(side, "msg assistant", r.reply);
       renderStats(side, r.state);

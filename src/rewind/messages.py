@@ -68,6 +68,14 @@ def prepend_text(message: dict, header: str) -> dict:
     return {"role": "user", "content": [{"type": "text", "text": header}, *content]}
 
 
+def append_text(message: dict, text: str) -> dict:
+    """Return a copy of a user message with `text` added after its content."""
+    content = message["content"]
+    if isinstance(content, str):
+        return {**message, "content": f"{content}\n\n{text}"}
+    return {**message, "content": [*content, {"type": "text", "text": text}]}
+
+
 def strip_header(message: dict) -> dict:
     """Undo `prepend_text` for a compaction header, so archives hold only real turns."""
     content = message["content"]

@@ -78,3 +78,26 @@ def test_empty_input_and_unknown_tool(archive):
     tool = RecallTool(archive, "s")
     assert "either an id or a query" in tool.handle("recall", {}, turn=1).content
     assert tool.handle("search_web", {}, turn=1).is_error
+
+
+def test_prefetch_needs_a_unique_defining_record(tmp_path):
+    a = JsonlArchive(tmp_path)
+    a.put(f"user: keep\n{CODE}", session="s", gist="keep [compute_late_fee]", kind="code")
+    a.put("user: we call compute_late_fee from billing", session="s", gist="usage note")
+    tool = RecallTool(a, "s")
+    out = tool.prefetch("what does compute_late_fee return?", turn=3)
+    assert CODE in out and tool.stats.prefetches == 1
+    assert tool.prefetch("compute_late_fee again", turn=4) is None  # already attached
+    tool.on_compaction([{"role": "user", "content": out}])  # attachment still in context
+    assert tool.prefetch("compute_late_fee again", turn=5) is None
+    tool.on_compaction([{"role": "user", "content": "summary only"}])  # attachment gone
+    assert tool.prefetch("compute_late_fee again", turn=6) is not None
+    assert tool.prefetch("tell me about late fees", turn=7) is None  # no identifier
+
+
+def test_inactive_until_archive_has_records(tmp_path):
+    a = JsonlArchive(tmp_path)
+    tool = RecallTool(a, "s")
+    assert not tool.active
+    a.put("user: x", session="s", gist="x")
+    assert tool.active

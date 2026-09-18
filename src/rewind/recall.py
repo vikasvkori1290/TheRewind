@@ -2,8 +2,10 @@
 
 from __future__ import annotations
 
+import re
 from dataclasses import asdict, dataclass, field
 
+from rewind.messages import to_text
 from rewind.search import query_terms
 from rewind.store import ArchiveStore, SearchHit, is_valid_id
 
@@ -36,6 +38,9 @@ RECALL_TOOL = {
     },
 }
 
+# Code-style identifiers: snake_case with an underscore, or camelCase / PascalCase.
+_IDENTIFIER = re.compile(r"\b(?:[A-Za-z][A-Za-z0-9]*_[A-Za-z0-9_]+|[a-z]+[A-Z][A-Za-z0-9]*)\b")
+
 NOT_FOUND = "NOT_FOUND: nothing in the archive matches. Answer without it or generate it fresh."
 
 
@@ -48,7 +53,7 @@ class ToolOutcome:
 @dataclass(frozen=True)
 class RecallEvent:
     turn: int
-    outcome: str  # hit_id | hit_search | miss | repeat_miss | invalid
+    outcome: str  # hit_id | hit_search | prefetch | miss | repeat_miss | invalid
     level: str
     id: str | None = None
     query: str | None = None
@@ -61,6 +66,7 @@ class RecallStats:
     calls: int = 0
     hits_by_id: int = 0
     hits_by_search: int = 0
+    prefetches: int = 0
     misses: int = 0
     repeated_misses: int = 0
     invalid: int = 0
@@ -86,10 +92,61 @@ class RecallTool:
     stats: RecallStats = field(default_factory=RecallStats)
     events: list[RecallEvent] = field(default_factory=list)
     _failed: set[tuple[str, ...]] = field(default_factory=set, init=False, repr=False)
+    _injected: set[str] = field(default_factory=set, init=False, repr=False)
+    _active: bool = field(default=False, init=False, repr=False)
+
+    @property
+    def active(self) -> bool:
+        # Nothing to recall before the first compaction, so the tool and its
+        # instructions stay out of the prompt until then.
+        if not self._active:
+            self._active = bool(self.archive.records(self.session_id))
+        return self._active
 
     @property
     def definitions(self) -> list[dict]:
         return [RECALL_TOOL]
+
+    @property
+    def system_note(self) -> str:
+        return RECALL_SYSTEM
+
+    def on_compaction(self, remaining: list[dict]) -> None:
+        # Forget attachments that compaction removed, so they can be attached again;
+        # ones still in context stay remembered to avoid sending duplicates.
+        still_there = "\n".join(to_text(m) for m in remaining)
+        self._injected = {rid for rid in self._injected if f'<archived id="{rid}"' in still_there}
+
+    def prefetch(self, text: str, turn: int, limit: int = 2) -> str | None:
+        """Attach archived turns that define an identifier the user names exactly.
+
+        An exact code identifier (e.g. compute_late_fee) is an unambiguous
+        request, so the text is attached to the user message directly and the
+        model needs no recall round trip, which would re-send the whole context.
+        """
+        attached = []
+        for ident in dict.fromkeys(_IDENTIFIER.findall(text)):
+            record = self._defining_record(ident)
+            if record and record.id not in self._injected and len(attached) < limit:
+                self._injected.add(record.id)
+                attached.append(_quote(record.id, record.kind, self.archive.text(record.id) or ""))
+                self.stats.prefetches += 1
+                self.events.append(RecallEvent(turn=turn, outcome="prefetch", level="full",
+                                               query=ident, record_ids=(record.id,),
+                                               chars_returned=len(attached[-1])))
+        if not attached:
+            return None
+        self.stats.chars_returned += sum(map(len, attached))
+        return ("[Archived turns attached automatically because this message names "
+                "something defined in them]\n" + "\n".join(attached))
+
+    def _defining_record(self, ident: str):
+        """The one archived turn whose gist says it defines `ident`, if exactly one does."""
+        needle = ident.lower()
+        matches = [h.record for h in self.archive.search(ident, session=self.session_id, k=5)
+                   if h.coverage == 1.0 and re.search(rf"\[[^\]]*\b{re.escape(needle)}\b",
+                                                      h.record.gist.lower())]
+        return matches[0] if len(matches) == 1 else None
 
     def handle(self, name: str, tool_input: dict, turn: int) -> ToolOutcome:
         if name != RECALL_TOOL["name"]:
