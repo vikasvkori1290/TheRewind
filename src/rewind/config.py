@@ -43,7 +43,7 @@ def _api_key(provider: str) -> str | None:
 class Settings:
     model: str = "claude-opus-5"
     # Deliberately small so compaction happens within a short demo conversation.
-    context_limit: int = 200
+    context_limit: int = 4_000
     # Latest messages that compaction never touches.
     keep_recent_messages: int = 2
     max_output_tokens: int = 16_000
