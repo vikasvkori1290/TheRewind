@@ -5,3 +5,9 @@ __pycache__/
 .env
 data/
 results/
+.DS_Store
+__MACOSX/
+Thumbs.db
+.vscode/
+.idea/
+

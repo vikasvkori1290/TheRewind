@@ -9,6 +9,7 @@ from rewind.ledger import MeteredLLM, UsageLedger
 from rewind.metrics import Usage
 from rewind.pricing import estimate_cost
 
+# pyrefly: ignore [missing-import]
 from fakes import FakeLLM, fake_response
 
 ENV_VARS = ("ANTHROPIC_API_KEY", "OPENAI_API_KEY", "NVIDIA_API_KEY", "GEMINI_API_KEY",
